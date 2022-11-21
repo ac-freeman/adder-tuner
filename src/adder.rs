@@ -8,7 +8,7 @@ use adder_codec_rs::transcoder::source::davis_source::DavisSource;
 use adder_codec_rs::SourceCamera;
 use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
 use adder_codec_rs::transcoder::source::video::Source;
-use crate::UiState;
+use crate::{replace_adder_transcoder, UiState};
 
 
 #[derive(Resource, Default)]
@@ -29,7 +29,7 @@ impl fmt::Display for AdderTranscoderError {
 impl Error for AdderTranscoderError {}
 
 impl AdderTranscoder {
-    pub(crate) fn new(path_buf: &PathBuf, ui_state: &ResMut<UiState>) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(path_buf: &PathBuf, ui_state: &ResMut<UiState>, current_frame: u32) -> Result<Self, Box<dyn Error>> {
         match path_buf.extension() {
             None => {
                 Err(Box::new(AdderTranscoderError("Invalid file type".into())))
@@ -42,7 +42,7 @@ impl AdderTranscoder {
                             path_buf.to_str().unwrap().to_string(),
                             SourceCamera::FramedU8,
                         )
-                            .frame_start(0)
+                            .frame_start(current_frame)
                             .chunk_rows(64)
                             .scale(ui_state.scale)
                             .communicate_events(true)
@@ -93,9 +93,23 @@ pub(crate) fn consume_source( mut ui_state: ResMut<UiState>,
                     }
                 }
             }
-            Some(source) => {source}
+            Some(source) => {
+                if source.scale != ui_state.scale {
+                    let source_name = ui_state.source_name.clone();
+                    let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
+                    replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), current_frame);
+                    return;
+                    // commands.remove_resource::<AdderTranscoder>();
+                    // commands.insert_resource
+                    // (
+                    //     transcoder
+                    // );
+                }
+                source
+            }
         }
     };
+
 
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(4)

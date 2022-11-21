@@ -226,26 +226,30 @@ fn file_drop(
                 }
             }
 
-            match AdderTranscoder::new(path_buf, &ui_state) {
-                Ok(transcoder) => {
-                    commands.remove_resource::<AdderTranscoder>();
-                    commands.insert_resource
-                    (
-                        transcoder
-                    );
-                    ui_state.source_name = RichText::new(path_buf.to_str().unwrap()).color(Color32::DARK_GREEN);
-
-                }
-                Err(e) => {
-                    commands.remove_resource::<AdderTranscoder>();
-                    commands.insert_resource
-                    (
-                        AdderTranscoder::default()
-                    );
-                    ui_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
-                }
-            };
+            replace_adder_transcoder(&mut commands, &mut ui_state, path_buf, 0);
         }
     }
+}
+
+pub(crate) fn replace_adder_transcoder(commands: &mut Commands, mut ui_state: &mut ResMut<UiState>, path_buf: &std::path::PathBuf, current_frame: u32) {
+    match AdderTranscoder::new(path_buf, &ui_state, current_frame) {
+        Ok(transcoder) => {
+            commands.remove_resource::<AdderTranscoder>();
+            commands.insert_resource
+            (
+                transcoder
+            );
+            ui_state.source_name = RichText::new(path_buf.to_str().unwrap()).color(Color32::DARK_GREEN);
+
+        }
+        Err(e) => {
+            commands.remove_resource::<AdderTranscoder>();
+            commands.insert_resource
+            (
+                AdderTranscoder::default()
+            );
+            ui_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
+        }
+    };
 }
 
