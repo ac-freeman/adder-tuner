@@ -84,22 +84,9 @@ fn configure_visuals(mut egui_ctx: ResMut<EguiContext>) {
     });
 }
 
-fn configure_ui_state(mut ui_state: ResMut<UiState>,mut commands: Commands,) {
+fn configure_ui_state(mut ui_state: ResMut<UiState>) {
     ui_state.is_window_open = true;
-    // let entity_id = commands.spawn(ErrString { text: ui_state.source_name, good: false })
-    //     // add a component
-    //     .id();
 }
-
-// fn file_picker(mut egui_ctx: ResMut<EguiContext>) {
-//     open_file_dialog
-//     // egui_ctx.ctx_mut().open
-//     //
-//     //     set_visuals(egui::Visuals {
-//     //     window_rounding: 0.0.into(),
-//     //     ..Default::default()
-//     // });
-// }
 
 fn update_ui_scale_factor(
     keyboard_input: Res<Input<KeyCode>>,

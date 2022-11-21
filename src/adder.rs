@@ -99,11 +99,6 @@ pub(crate) fn consume_source( mut ui_state: ResMut<UiState>,
                     let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
                     replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), current_frame);
                     return;
-                    // commands.remove_resource::<AdderTranscoder>();
-                    // commands.insert_resource
-                    // (
-                    //     transcoder
-                    // );
                 }
                 source
             }
