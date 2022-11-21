@@ -81,34 +81,26 @@ impl AdderTranscoder {
 pub(crate) fn consume_source( mut ui_state: ResMut<UiState>,
                    mut commands: Commands,
                               mut transcoder: ResMut<AdderTranscoder>) {
-    let mut source: Box<dyn Source> = {
 
-        match &transcoder.framed_source {
+    let mut source: &mut dyn Source = {
+
+        match &mut transcoder.framed_source {
             None => {
-                match &transcoder.davis_source {
+                match &mut transcoder.davis_source {
                     None => { return; }
                     Some(source) => {
-                        Box::new(source) as Box<dyn Source>
+                        source
                     }
                 }
             }
-            Some(source) => {Box::new(source) as Box<dyn Source>}
+            Some(source) => {source}
         }
     };
-
-    // if ui_state.scale !=
 
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(4)
         .build()
         .unwrap();
 
-    (*source).consume(1, &pool).unwrap();
-
-    // match transcoder.framed_source.as_mut() {
-    //     None => {}
-    //     Some(source) => {
-    //
-    //     }
-    // }
+    source.consume(1, &pool).unwrap();
 }
