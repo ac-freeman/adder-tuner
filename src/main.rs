@@ -211,7 +211,7 @@ fn file_drop(
                 }
             }
 
-            match AdderTranscoder::new(path_buf) {
+            match AdderTranscoder::new(path_buf, &ui_state) {
                 Ok(transcoder) => {
                     commands.insert_resource
                     (
