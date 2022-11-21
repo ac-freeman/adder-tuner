@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 use bevy_egui::egui::{Color32, RichText};
 use bevy_editor_pls::prelude::*;
-use crate::adder::AdderTranscoder;
+use crate::adder::{AdderTranscoder, consume_source};
 
 struct Images {
     bevy_icon: Handle<Image>,
@@ -31,6 +31,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .insert_resource(Msaa { samples: 4 })
+        .insert_resource(AdderTranscoder::default())
         .init_resource::<UiState>()
         .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
@@ -40,6 +41,7 @@ fn main() {
         .add_system(update_ui_scale_factor)
         .add_system(ui_example)
         .add_system(file_drop)
+        .add_system(consume_source)
         .run();
 }
 
@@ -213,6 +215,7 @@ fn file_drop(
 
             match AdderTranscoder::new(path_buf, &ui_state) {
                 Ok(transcoder) => {
+                    commands.remove_resource::<AdderTranscoder>();
                     commands.insert_resource
                     (
                         transcoder
@@ -221,6 +224,11 @@ fn file_drop(
 
                 }
                 Err(e) => {
+                    commands.remove_resource::<AdderTranscoder>();
+                    commands.insert_resource
+                    (
+                        AdderTranscoder::default()
+                    );
                     ui_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
                 }
             };

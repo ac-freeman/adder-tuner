@@ -2,7 +2,7 @@ use std::error::Error;
 use std::ffi::OsStr;
 use std::fmt;
 use std::path::PathBuf;
-use bevy::prelude::{ResMut, Resource};
+use bevy::prelude::{Commands, Query, ResMut, Resource};
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::davis_source::DavisSource;
 use adder_codec_rs::SourceCamera;
@@ -10,7 +10,7 @@ use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
 use crate::UiState;
 
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct AdderTranscoder {
     framed_source: Option<FramedSource>,
     davis_source: Option<DavisSource>,
@@ -76,6 +76,13 @@ impl AdderTranscoder {
     }
 }
 
-// trait AdderTranscoder {
-//     fn new() ->
-// }
+pub(crate) fn consume_source( mut ui_state: ResMut<UiState>,
+                   mut commands: Commands,
+                              mut transcoder: ResMut<AdderTranscoder>) {
+    match transcoder.framed_source {
+        None => {}
+        Some(_) => {
+            println!("Has transcoder now");
+        }
+    }
+}
