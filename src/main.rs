@@ -1,6 +1,12 @@
+mod adder;
+
+use std::error::Error;
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
+use bevy_egui::egui::{Color32, RichText};
+use bevy_editor_pls::prelude::*;
+use crate::adder::AdderTranscoder;
 
 struct Images {
     bevy_icon: Handle<Image>,
@@ -28,10 +34,12 @@ fn main() {
         .init_resource::<UiState>()
         .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
+        // .add_plugin(EditorPlugin)
         .add_startup_system(configure_visuals)
         .add_startup_system(configure_ui_state)
         .add_system(update_ui_scale_factor)
         .add_system(ui_example)
+        .add_system(file_drop)
         .run();
 }
 
@@ -41,9 +49,10 @@ struct UiState {
     delta_t_ref: f32,
     delta_t_max: f32,
     adder_tresh: f32,
-    painting: Painting,
+    drop_target: MyDropTarget,
     inverted: bool,
     egui_texture_handle: Option<egui::TextureHandle>,
+    source_name: RichText,
     is_window_open: bool,
 }
 
@@ -54,9 +63,10 @@ impl Default for UiState {
             delta_t_ref: 255.0,
             delta_t_max: 255.0*120.0,
             adder_tresh: 10.0,
-            painting: Default::default(),
+            drop_target: Default::default(),
             inverted: false,
             egui_texture_handle: None,
+            source_name: RichText::new("No file selected yet"),
             is_window_open: true
         }
     }
@@ -69,9 +79,22 @@ fn configure_visuals(mut egui_ctx: ResMut<EguiContext>) {
     });
 }
 
-fn configure_ui_state(mut ui_state: ResMut<UiState>) {
+fn configure_ui_state(mut ui_state: ResMut<UiState>,mut commands: Commands,) {
     ui_state.is_window_open = true;
+    // let entity_id = commands.spawn(ErrString { text: ui_state.source_name, good: false })
+    //     // add a component
+    //     .id();
 }
+
+// fn file_picker(mut egui_ctx: ResMut<EguiContext>) {
+//     open_file_dialog
+//     // egui_ctx.ctx_mut().open
+//     //
+//     //     set_visuals(egui::Visuals {
+//     //     window_rounding: 0.0.into(),
+//     //     ..Default::default()
+//     // });
+// }
 
 fn update_ui_scale_factor(
     keyboard_input: Res<Input<KeyCode>>,
@@ -96,33 +119,7 @@ fn update_ui_scale_factor(
 fn ui_example(
     mut egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
-    // You are not required to store Egui texture ids in systems. We store this one here just to
-    // demonstrate that rendering by using a texture id of a removed image is handled without
-    // making bevy_egui panic.
-    mut rendered_texture_id: Local<egui::TextureId>,
-    mut is_initialized: Local<bool>,
-    // If you need to access the ids from multiple systems, you can also initialize the `Images`
-    // resource while building the app and use `Res<Images>` instead.
-    images: Local<Images>,
 ) {
-    let egui_texture_handle = ui_state
-        .egui_texture_handle
-        .get_or_insert_with(|| {
-            egui_ctx
-                .ctx_mut()
-                .load_texture("example-image", egui::ColorImage::example(), egui::TextureFilter::Linear)
-        })
-        .clone();
-
-    let mut load = false;
-    let mut remove = false;
-    let mut invert = false;
-
-    if !*is_initialized {
-        *is_initialized = true;
-        *rendered_texture_id = egui_ctx.add_image(images.bevy_icon.clone_weak());
-    }
-
     egui::SidePanel::left("side_panel")
         .default_width(200.0)
         .show(egui_ctx.ctx_mut(), |ui| {
@@ -160,11 +157,6 @@ fn ui_example(
 
     egui::CentralPanel::default().show(egui_ctx.ctx_mut(), |ui| {
         ui.heading("Egui Template");
-        ui.hyperlink("https://github.com/emilk/egui_template");
-        ui.add(egui::github_link_file_line!(
-            "https://github.com/mvlabat/bevy_egui/blob/main/",
-            "Direct link to source code."
-        ));
         egui::warn_if_debug_build(ui);
 
         ui.separator();
@@ -173,11 +165,11 @@ fn ui_example(
         ui.label("The central panel the region left after adding TopPanel's and SidePanel's");
         ui.label("It is often a great place for big things, like drawings:");
 
-        ui.heading("Draw with your mouse to paint:");
-        ui_state.painting.ui_control(ui);
-        egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
-            ui_state.painting.ui_content(ui);
-        });
+        ui.heading("Drag and drop your source file here.");
+
+
+
+        ui.label(ui_state.source_name.clone());
     });
 
     egui::Window::new("Window")
@@ -189,75 +181,50 @@ fn ui_example(
             ui.label("You can turn on resizing and scrolling if you like.");
             ui.label("You would normally chose either panels OR windows.");
         });
-
-    if invert {
-        ui_state.inverted = !ui_state.inverted;
-    }
-    if load || invert {
-        // If an image is already added to the context, it'll return an existing texture id.
-        if ui_state.inverted {
-            *rendered_texture_id = egui_ctx.add_image(images.bevy_icon_inverted.clone_weak());
-        } else {
-            *rendered_texture_id = egui_ctx.add_image(images.bevy_icon.clone_weak());
-        };
-    }
-    if remove {
-        egui_ctx.remove_image(&images.bevy_icon);
-        egui_ctx.remove_image(&images.bevy_icon_inverted);
-    }
 }
 
-struct Painting {
-    lines: Vec<Vec<egui::Vec2>>,
-    stroke: egui::Stroke,
-}
+#[derive(Component, Default)]
+struct MyDropTarget;
 
-impl Default for Painting {
-    fn default() -> Self {
-        Self {
-            lines: Default::default(),
-            stroke: egui::Stroke::new(1.0, egui::Color32::LIGHT_BLUE),
-        }
-    }
-}
 
-impl Painting {
-    pub fn ui_control(&mut self, ui: &mut egui::Ui) -> egui::Response {
-        ui.horizontal(|ui| {
-            egui::stroke_ui(ui, &mut self.stroke, "Stroke");
-            ui.separator();
-            if ui.button("Clear Painting").clicked() {
-                self.lines.clear();
+///https://bevy-cheatbook.github.io/input/dnd.html
+fn file_drop(
+    mut ui_state: ResMut<UiState>,
+    mut commands: Commands,
+    mut dnd_evr: EventReader<FileDragAndDrop>,
+    query_ui_droptarget: Query<&Interaction, With<MyDropTarget>>,
+) {
+    for ev in dnd_evr.iter() {
+        println!("{:?}", ev);
+        if let FileDragAndDrop::DroppedFile { id, path_buf } = ev {
+            println!("Dropped file with path: {:?}", path_buf);
+
+            if id.is_primary() {
+                // it was dropped over the main window
+
             }
-        })
-            .response
-    }
 
-    pub fn ui_content(&mut self, ui: &mut egui::Ui) {
-        let (response, painter) =
-            ui.allocate_painter(ui.available_size_before_wrap(), egui::Sense::drag());
-        let rect = response.rect;
-
-        if self.lines.is_empty() {
-            self.lines.push(vec![]);
-        }
-
-        let current_line = self.lines.last_mut().unwrap();
-
-        if let Some(pointer_pos) = response.interact_pointer_pos() {
-            let canvas_pos = pointer_pos - rect.min;
-            if current_line.last() != Some(&canvas_pos) {
-                current_line.push(canvas_pos);
+            for interaction in query_ui_droptarget.iter() {
+                if *interaction == Interaction::Hovered {
+                    // it was dropped over our UI element
+                    // (our UI element is being hovered over)
+                }
             }
-        } else if !current_line.is_empty() {
-            self.lines.push(vec![]);
-        }
 
-        for line in &self.lines {
-            if line.len() >= 2 {
-                let points: Vec<egui::Pos2> = line.iter().map(|p| rect.min + *p).collect();
-                painter.add(egui::Shape::line(points, self.stroke));
-            }
+            match AdderTranscoder::new(path_buf) {
+                Ok(transcoder) => {
+                    commands.insert_resource
+                    (
+                        transcoder
+                    );
+                    ui_state.source_name = RichText::new(path_buf.to_str().unwrap()).color(Color32::DARK_GREEN);
+
+                }
+                Err(e) => {
+                    ui_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
+                }
+            };
         }
     }
 }
+
