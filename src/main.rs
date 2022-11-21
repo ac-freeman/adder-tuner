@@ -1,5 +1,6 @@
 mod adder;
 
+use std::cmp::min;
 use std::error::Error;
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
@@ -51,6 +52,7 @@ struct UiState {
     delta_t_ref: f32,
     delta_t_max: f32,
     adder_tresh: f32,
+    scale: f64,
     drop_target: MyDropTarget,
     inverted: bool,
     egui_texture_handle: Option<egui::TextureHandle>,
@@ -65,6 +67,7 @@ impl Default for UiState {
             delta_t_ref: 255.0,
             delta_t_max: 255.0*120.0,
             adder_tresh: 10.0,
+            scale: 0.5,
             drop_target: Default::default(),
             inverted: false,
             egui_texture_handle: None,
@@ -138,6 +141,16 @@ fn ui_example(
             ui.add(egui::Slider::new(&mut ui_state.adder_tresh, 0.0..=255.0).text("ADΔER threshold"));
             if ui.button("Increment").clicked() {
                 ui_state.adder_tresh += 1.0;
+            }
+
+            ui.add(egui::Slider::new(&mut ui_state.scale, 0.0..=1.0).text("Video scale"));
+            if ui.button("Decrement").clicked() {
+                ui_state.scale -= 0.1;
+                ui_state.scale = ui_state.scale.max(0.0);
+            }
+            if ui.button("Increment").clicked() {
+                ui_state.scale += 0.1;
+                ui_state.scale = ui_state.scale.min(1.0);
             }
 
             ui.allocate_space(egui::Vec2::new(1.0, 100.0));

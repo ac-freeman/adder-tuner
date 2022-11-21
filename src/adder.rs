@@ -7,6 +7,7 @@ use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::davis_source::DavisSource;
 use adder_codec_rs::SourceCamera;
 use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
+use adder_codec_rs::transcoder::source::video::Source;
 use crate::UiState;
 
 
@@ -38,11 +39,12 @@ impl AdderTranscoder {
                     None => {Err(Box::new(AdderTranscoderError("Invalid file type".into())))}
                     Some("mp4") => {
                         match FramedSourceBuilder::new(
-                            "/media/andrew/ExternalM2/LAS/GH010017.mp4".to_string(),
+                            path_buf.to_str().unwrap().to_string(),
                             SourceCamera::FramedU8,
                         )
                             .frame_start(0)
-                            .scale(1.0)
+                            .chunk_rows(64)
+                            .scale(ui_state.scale)
                             .communicate_events(true)
                             // .output_events_filename("/home/andrew/Downloads/events.adder".to_string())
                             .color(true)
@@ -79,10 +81,34 @@ impl AdderTranscoder {
 pub(crate) fn consume_source( mut ui_state: ResMut<UiState>,
                    mut commands: Commands,
                               mut transcoder: ResMut<AdderTranscoder>) {
-    match transcoder.framed_source {
-        None => {}
-        Some(_) => {
-            println!("Has transcoder now");
+    let mut source: Box<dyn Source> = {
+
+        match &transcoder.framed_source {
+            None => {
+                match &transcoder.davis_source {
+                    None => { return; }
+                    Some(source) => {
+                        Box::new(source) as Box<dyn Source>
+                    }
+                }
+            }
+            Some(source) => {Box::new(source) as Box<dyn Source>}
         }
-    }
+    };
+
+    // if ui_state.scale !=
+
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(4)
+        .build()
+        .unwrap();
+
+    (*source).consume(1, &pool).unwrap();
+
+    // match transcoder.framed_source.as_mut() {
+    //     None => {}
+    //     Some(source) => {
+    //
+    //     }
+    // }
 }

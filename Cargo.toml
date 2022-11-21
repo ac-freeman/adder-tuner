@@ -12,6 +12,7 @@ adder-codec-rs = { path = "/home/andrew/Code/adder-codec-rs", features = ["trans
 bevy = { version = "0.9.0", features = ["bevy_dynamic_plugin"]}
 bevy_egui = "0.17.1"
 bevy_editor_pls = "0.2.0"
+rayon = "1.5.3"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
