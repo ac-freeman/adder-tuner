@@ -154,8 +154,10 @@ fn ui_example(
         });
     });
     let mut texture_id = None;
+    let mut size= Default::default();
     if let Some(image) = images.get(&handles.image_view) {
         texture_id = Some(egui_ctx.add_image(handles.image_view.clone()));
+        size = bevy_egui::egui::Vec2 { x: 800.0, y: (800.0/image.texture_descriptor.size.width as f32) * image.texture_descriptor.size.height as f32 }
     }
 
     egui::CentralPanel::default().show(egui_ctx.ctx_mut(), |ui| {
@@ -178,7 +180,7 @@ fn ui_example(
         match texture_id {
             None => {}
             Some(id) => {
-                ui.image(id, bevy_egui::egui::Vec2 { x: 300.0, y: 200.0 });
+                ui.image(id,  size);
             }
         }
 

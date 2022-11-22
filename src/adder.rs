@@ -12,9 +12,9 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy_egui::egui::TextureFilter;
 use bevy_egui::EguiContext;
 use crate::{Images, replace_adder_transcoder, UiState};
-use opencv::core::{CV_32FC4, Mat};
+use opencv::core::{CV_32FC3, CV_32FC4, Mat};
 use opencv::videoio::{VideoCapture, CAP_PROP_FPS, CAP_PROP_FRAME_COUNT, CAP_PROP_POS_FRAMES};
-use opencv::{imgproc, prelude::*, videoio, Result};
+use opencv::{imgproc, prelude::*, videoio, Result, highgui};
 use bevy::{
     input::mouse::{MouseScrollUnit, MouseWheel},
     prelude::*,
@@ -137,8 +137,12 @@ pub(crate) fn consume_source(
     // convert bgr u8 image to rgba u8 image
     let mut image_mat_rgba = Mat::default();
     imgproc::cvt_color(&image_mat, &mut image_mat_rgba, imgproc::COLOR_BGR2RGBA, 4).unwrap();
+    // let mut image_mat_rgb_32f = Mat::default();
+    // Mat::convert_to(&image_mat_rgba, &mut image_mat_rgb_32f, CV_32FC3, 1.0/255.0, 0.0).unwrap();
     let mut image_mat_rgba_32f = Mat::default();
     Mat::convert_to(&image_mat_rgba, &mut image_mat_rgba_32f, CV_32FC4, 1.0/255.0, 0.0).unwrap();
+    highgui::imshow("tmp", &image_mat_rgba_32f).unwrap();
+    highgui::wait_key(1).unwrap();
 
     let image_bevy = Image::new(
         Extent3d {
