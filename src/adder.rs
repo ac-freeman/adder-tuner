@@ -5,9 +5,9 @@ use std::path::PathBuf;
 use bevy::prelude::{Commands, Image, NodeBundle, Query, ResMut, Resource};
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::davis_source::DavisSource;
-use adder_codec_rs::SourceCamera;
+use adder_codec_rs::{Event, SourceCamera};
 use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
-use adder_codec_rs::transcoder::source::video::Source;
+use adder_codec_rs::transcoder::source::video::{Source, SourceError};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy_egui::egui::TextureFilter;
 use bevy_egui::EguiContext;
@@ -130,11 +130,22 @@ pub(crate) fn consume_source(
         .build()
         .unwrap();
 
-    source.consume(1, &pool).unwrap();
+    match source.consume(1, &pool) {
+        Ok(_) => {}
+        Err(SourceError::Open) => {
+
+        }
+        Err(_) => {
+            // Start video over from the beginning
+            let source_name = ui_state.source_name.clone();
+            replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), 0);
+            return;
+        }
+    };
 
     let image_mat = &source.get_video().instantaneous_frame;
 
-    // convert bgr u8 image to rgba u8 image
+    // add alpha channel
     let mut image_mat_bgra = Mat::default();
     imgproc::cvt_color(&image_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
     // let mut image_mat_rgba_32f = Mat::default();
