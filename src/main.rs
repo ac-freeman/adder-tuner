@@ -24,6 +24,7 @@ fn main() {
         .insert_resource(AdderTranscoder::default())
         .insert_resource(Images::default())
         .init_resource::<UiState>()
+        .init_resource::<UiStateMemory>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
                 title: "ADΔER Tuner".to_string(),
@@ -54,12 +55,35 @@ struct Images {
 }
 
 #[derive(Resource)]
+struct UiStateMemory {
+    delta_t_ref_slider: f32,
+    delta_t_max_mult_slider: u32,
+    adder_tresh_slider: f32,
+    scale_slider: f64,
+}
+impl Default for UiStateMemory {
+    fn default() -> Self {
+        UiStateMemory {
+            delta_t_ref_slider: 255.0,
+            delta_t_max_mult_slider: 120,
+            adder_tresh_slider: 10.0,
+            scale_slider: 0.5
+        }
+    }
+}
+
+#[derive(Resource)]
 struct UiState {
     label: String,
     delta_t_ref: f32,
-    delta_t_max: f32,
+    delta_t_ref_max: f32,
+    delta_t_max_mult: u32,
     adder_tresh: f32,
+    delta_t_ref_slider: f32,
+    delta_t_max_mult_slider: u32,
+    adder_tresh_slider: f32,
     scale: f64,
+    scale_slider: f64,
     drop_target: MyDropTarget,
     inverted: bool,
     egui_texture_handle: Option<egui::TextureHandle>,
@@ -74,9 +98,14 @@ impl Default for UiState {
         UiState {
             label: "".to_string(),
             delta_t_ref: 255.0,
-            delta_t_max: 255.0*120.0,
+            delta_t_ref_max: 255.0,
+            delta_t_max_mult: 120,
             adder_tresh: 10.0,
+            delta_t_ref_slider: 255.0,
+            delta_t_max_mult_slider: 120,
+            adder_tresh_slider: 10.0,
             scale: 0.5,
+            scale_slider: 0.5,
             drop_target: Default::default(),
             inverted: false,
             egui_texture_handle: None,
@@ -127,25 +156,23 @@ fn ui_example(
     mut ui_state: ResMut<UiState>,
 ) {
     egui::SidePanel::left("side_panel")
-        .default_width(200.0)
+        .default_width(300.0)
         .show(egui_ctx.ctx_mut(), |ui| {
             ui.heading("Side Panel");
 
-            let dtm_multiplier = ui_state.delta_t_max / ui_state.delta_t_ref;
-            ui.add(egui::Slider::new(&mut ui_state.delta_t_ref, 1.0..=1.0e4).text("Δt_ref"));
+            let dtr_max = ui_state.delta_t_ref_max;
+            ui.add(egui::Slider::new(&mut ui_state.delta_t_ref_slider, 1.0..=dtr_max).text("Δt_ref"));
             if ui.button("Increment").clicked() {
-                ui_state.delta_t_ref += 1.0;
+                ui_state.delta_t_ref_slider += 1.0;
             }
 
-            ui_state.delta_t_max = ui_state.delta_t_ref * dtm_multiplier;
-            let current_dt_ref = ui_state.delta_t_ref.clone();
-            ui.add(egui::Slider::new(&mut ui_state.delta_t_max, current_dt_ref..=1.0e7).text("Δt_max"));
+            ui.add(egui::Slider::new(&mut ui_state.delta_t_max_mult_slider, 2..=1000).text("Δt_max"));
             if ui.button("Increment").clicked() {
-                ui_state.delta_t_max += 1.0;
+                ui_state.delta_t_max_mult_slider += 1;
             }
-            ui.add(egui::Slider::new(&mut ui_state.adder_tresh, 0.0..=255.0).text("ADΔER threshold"));
+            ui.add(egui::Slider::new(&mut ui_state.adder_tresh_slider, 0.0..=255.0).text("ADΔER threshold"));
             if ui.button("Increment").clicked() {
-                ui_state.adder_tresh += 1.0;
+                ui_state.adder_tresh_slider += 1.0;
             }
 
             ui.add(egui::Slider::new(&mut ui_state.thread_count, 1..=current_num_threads()).text("Thread count"));
@@ -154,14 +181,14 @@ fn ui_example(
                 ui_state.thread_count = ui_state.thread_count.min(current_num_threads());
             }
 
-            ui.add(egui::Slider::new(&mut ui_state.scale, 0.01..=1.0).text("Video scale"));
+            ui.add(egui::Slider::new(&mut ui_state.scale_slider, 0.01..=1.0).text("Video scale"));
             if ui.button("Decrement").clicked() {
-                ui_state.scale -= 0.1;
-                ui_state.scale = ui_state.scale.max(0.01);
+                ui_state.scale_slider -= 0.1;
+                ui_state.scale_slider = ui_state.scale_slider.max(0.01);
             }
             if ui.button("Increment").clicked() {
-                ui_state.scale += 0.1;
-                ui_state.scale = ui_state.scale.min(1.0);
+                ui_state.scale_slider += 0.1;
+                ui_state.scale_slider = ui_state.scale_slider.min(1.0);
             }
 
             ui.allocate_space(egui::Vec2::new(1.0, 100.0));
@@ -280,7 +307,7 @@ fn file_drop(
 }
 
 pub(crate) fn replace_adder_transcoder(commands: &mut Commands, mut ui_state: &mut ResMut<UiState>, path_buf: &std::path::PathBuf, current_frame: u32) {
-    match AdderTranscoder::new(path_buf, &ui_state, current_frame) {
+    match AdderTranscoder::new(path_buf, &mut ui_state, current_frame) {
         Ok(transcoder) => {
             commands.remove_resource::<AdderTranscoder>();
             commands.insert_resource

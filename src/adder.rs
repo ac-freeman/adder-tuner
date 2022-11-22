@@ -11,7 +11,7 @@ use adder_codec_rs::transcoder::source::video::{Source, SourceError};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy_egui::egui::TextureFilter;
 use bevy_egui::EguiContext;
-use crate::{Images, replace_adder_transcoder, UiState};
+use crate::{Images, replace_adder_transcoder, UiState, UiStateMemory};
 use opencv::core::{CV_32FC3, CV_32FC4, Mat};
 use opencv::videoio::{VideoCapture, CAP_PROP_FPS, CAP_PROP_FRAME_COUNT, CAP_PROP_POS_FRAMES};
 use opencv::{imgproc, prelude::*, videoio, Result, highgui};
@@ -41,7 +41,7 @@ impl fmt::Display for AdderTranscoderError {
 impl Error for AdderTranscoderError {}
 
 impl AdderTranscoder {
-    pub(crate) fn new(path_buf: &PathBuf, ui_state: &ResMut<UiState>, current_frame: u32) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(path_buf: &PathBuf, mut ui_state: &mut ResMut<UiState>, current_frame: u32) -> Result<Self, Box<dyn Error>> {
         match path_buf.extension() {
             None => {
                 Err(Box::new(AdderTranscoderError("Invalid file type".into())))
@@ -62,9 +62,10 @@ impl AdderTranscoder {
                             .color(true)
                             .contrast_thresholds(ui_state.adder_tresh as u8, ui_state.adder_tresh as u8)
                             .show_display(false)
-                            .time_parameters(ui_state.delta_t_ref as u32, ui_state.delta_t_max as u32)
+                            .time_parameters(ui_state.delta_t_ref as u32, ui_state.delta_t_max_mult * ui_state.delta_t_ref as u32 )
                             .finish() {
                             Ok(source) => {
+                                ui_state.delta_t_ref_max = 255.0;
                                 Ok(AdderTranscoder {
                                     framed_source: Some(source),
                                     davis_source: None,
@@ -98,8 +99,34 @@ pub(crate) fn update_adder_params(
     mut handles: ResMut<Images>,
     mut egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
+    mut ui_state_mem: ResMut<UiStateMemory>,
     mut commands: Commands,
     mut transcoder: ResMut<AdderTranscoder>) {
+    // First, check if the sliders have changed. If they have, don't do anything this frame.
+    if ui_state.delta_t_ref_slider != ui_state_mem.delta_t_ref_slider {
+        ui_state_mem.delta_t_ref_slider = ui_state.delta_t_ref_slider;
+        return;
+    }
+    if ui_state.delta_t_max_mult_slider != ui_state_mem.delta_t_max_mult_slider {
+        ui_state_mem.delta_t_max_mult_slider = ui_state.delta_t_max_mult_slider;
+        return;
+    }
+    if ui_state.adder_tresh_slider != ui_state_mem.adder_tresh_slider {
+        ui_state_mem.adder_tresh_slider = ui_state.adder_tresh_slider;
+        return;
+    }
+    if ui_state.scale_slider != ui_state_mem.scale_slider {
+        ui_state_mem.scale_slider = ui_state.scale_slider;
+        return;
+    }
+
+    ui_state.delta_t_ref = ui_state.delta_t_ref_slider;
+    ui_state.delta_t_max_mult = ui_state.delta_t_max_mult_slider;
+    ui_state.adder_tresh = ui_state.adder_tresh_slider;
+    ui_state.scale = ui_state.scale_slider;
+
+
+
     let mut source: &mut dyn Source = {
 
         match &mut transcoder.framed_source {
@@ -127,7 +154,7 @@ pub(crate) fn update_adder_params(
     let video = source.get_video_mut();
     video.update_adder_thresh_pos(ui_state.adder_tresh as u8);
     video.update_adder_thresh_neg(ui_state.adder_tresh as u8);
-    video.update_delta_t_max(ui_state.delta_t_max as u32);
+    video.update_delta_t_max(ui_state.delta_t_max_mult as u32 * video.get_ref_time());
 
 
 }
