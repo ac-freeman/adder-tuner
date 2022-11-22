@@ -8,6 +8,7 @@ use bevy_editor_pls::egui::TextureId;
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 use bevy_egui::egui::{Color32, RichText};
 use bevy_editor_pls::prelude::*;
+use rayon::current_num_threads;
 use crate::adder::{AdderTranscoder, consume_source};
 
 /// This example demonstrates the following functionality and use-cases of bevy_egui:
@@ -50,6 +51,7 @@ struct UiState {
     egui_texture_handle: Option<egui::TextureHandle>,
     // image: Handle<Image>,
     source_name: RichText,
+    thread_count: usize,
     is_window_open: bool,
 }
 
@@ -66,6 +68,7 @@ impl Default for UiState {
             egui_texture_handle: None,
             // image: Default::default(),
             source_name: RichText::new("No file selected yet"),
+            thread_count: 4,
             is_window_open: true
         }
     }
@@ -125,6 +128,12 @@ fn ui_example(
             ui.add(egui::Slider::new(&mut ui_state.adder_tresh, 0.0..=255.0).text("ADΔER threshold"));
             if ui.button("Increment").clicked() {
                 ui_state.adder_tresh += 1.0;
+            }
+
+            ui.add(egui::Slider::new(&mut ui_state.thread_count, 1..=current_num_threads()).text("Thread count"));
+            if ui.button("Increment").clicked() {
+                ui_state.thread_count += 1;
+                ui_state.thread_count = ui_state.thread_count.min(current_num_threads());
             }
 
             ui.add(egui::Slider::new(&mut ui_state.scale, 0.0..=1.0).text("Video scale"));

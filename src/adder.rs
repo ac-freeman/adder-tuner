@@ -126,7 +126,7 @@ pub(crate) fn consume_source(
 
 
     let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(4)
+        .num_threads(ui_state.thread_count)
         .build()
         .unwrap();
 
