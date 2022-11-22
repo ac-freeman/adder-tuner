@@ -2,8 +2,10 @@ mod adder;
 
 use std::cmp::min;
 use std::error::Error;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
+use bevy::window::PresentMode;
 use bevy_editor_pls::egui::TextureId;
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 use bevy_egui::egui::{Color32, RichText};
@@ -22,8 +24,19 @@ fn main() {
         .insert_resource(AdderTranscoder::default())
         .insert_resource(Images::default())
         .init_resource::<UiState>()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            window: WindowDescriptor {
+                title: "ADΔER Tuner".to_string(),
+                width: 500.,
+                height: 300.,
+                present_mode: PresentMode::AutoVsync,
+                ..default()
+            },
+            ..default()
+        }))
         .add_plugin(EguiPlugin)
+        .add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin)
         // .add_plugin(EditorPlugin)
         .add_startup_system(configure_visuals)
         .add_startup_system(configure_ui_state)
@@ -76,7 +89,7 @@ impl Default for UiState {
 
 fn configure_visuals(mut egui_ctx: ResMut<EguiContext>) {
     egui_ctx.ctx_mut().set_visuals(egui::Visuals {
-        window_rounding: 0.0.into(),
+        window_rounding: 5.0.into(),
         ..Default::default()
     });
 }
@@ -136,7 +149,7 @@ fn ui_example(
                 ui_state.thread_count = ui_state.thread_count.min(current_num_threads());
             }
 
-            ui.add(egui::Slider::new(&mut ui_state.scale, 0.0..=1.0).text("Video scale"));
+            ui.add(egui::Slider::new(&mut ui_state.scale, 0.01..=1.0).text("Video scale"));
             if ui.button("Decrement").clicked() {
                 ui_state.scale -= 0.1;
                 ui_state.scale = ui_state.scale.max(0.01);
@@ -162,19 +175,14 @@ fn ui_example(
             });
         });
     });
-    let mut texture_id = None;
-    let mut size= Default::default();
-    if let Some(image) = images.get(&handles.image_view) {
-        texture_id = Some(egui_ctx.add_image(handles.image_view.clone()));
-        size = match (image.texture_descriptor.size.width as f32, image.texture_descriptor.size.height as f32) {
-            (a, b) if a > b => {
-                bevy_egui::egui::Vec2 { x: 800.0, y: (800.0/a) * b }
-            }
-            (a, b) => {
-                bevy_egui::egui::Vec2 { x: (600.0/b) * a, y: 600.0 }
-            }
+
+    let (image, texture_id) = match images.get(&handles.image_view) {
+        // texture_id = Some(egui_ctx.add_image(handles.image_view.clone()));
+        None => { (None, None)}
+        Some(image) => {
+            (Some(image),Some(egui_ctx.add_image(handles.image_view.clone())))
         }
-    }
+    };
 
     egui::CentralPanel::default().show(egui_ctx.ctx_mut(), |ui| {
         ui.heading("Egui Template");
@@ -193,12 +201,32 @@ fn ui_example(
         ui.label(ui_state.source_name.clone());
 
 
-        match texture_id {
-            None => {}
-            Some(id) => {
-                ui.image(id,  size);
+        match (image, texture_id) {
+            (Some(image), Some(texture_id)) => {
+                let avail_size = ui.available_size();
+                let mut size= Default::default();
+
+                size = match (image.texture_descriptor.size.width as f32, image.texture_descriptor.size.height as f32) {
+                    (a, b) if a/b > avail_size.x/avail_size.y => {
+                        /*
+                        The available space has a taller aspect ratio than the video
+                        Fill the available horizontal space.
+                         */
+                        bevy_egui::egui::Vec2 { x: avail_size.x, y: (avail_size.x/a) * b }
+                    }
+                    (a, b) => {
+                        /*
+                        The available space has a shorter aspect ratio than the video
+                        Fill the available vertical space.
+                         */
+                        bevy_egui::egui::Vec2 { x: (avail_size.y/b) * a, y: avail_size.y }
+                    }
+                };
+                ui.image(texture_id,  size);
             }
+            _ => {}
         }
+
 
     });
 
