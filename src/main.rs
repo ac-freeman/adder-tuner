@@ -130,7 +130,7 @@ fn ui_example(
             ui.add(egui::Slider::new(&mut ui_state.scale, 0.0..=1.0).text("Video scale"));
             if ui.button("Decrement").clicked() {
                 ui_state.scale -= 0.1;
-                ui_state.scale = ui_state.scale.max(0.0);
+                ui_state.scale = ui_state.scale.max(0.01);
             }
             if ui.button("Increment").clicked() {
                 ui_state.scale += 0.1;
@@ -183,37 +183,6 @@ fn ui_example(
                 ui.image(id,  size);
             }
         }
-
-        // if let Some(image) = images.get(&handles.image_view) {
-        //     // let texture_id = egui_ctx.add_image(handles.image_view.clone());
-        //     ui.image(texture_id.unwrap(), bevy_egui::egui::Vec2 { x: 300.0, y: 200.0 });
-            // let ui_image = UiImage::from(handles.image_view.clone_weak());
-
-            // ui.image(ui_image);
-
-            // commands
-            //     .spawn(NodeBundle {
-            //         style: Style {
-            //             size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-            //             position_type: PositionType::Absolute,
-            //             justify_content: JustifyContent::Center,
-            //             align_items: AlignItems::FlexStart,
-            //             ..default()
-            //         },
-            //         ..default()
-            //     })
-            //     .with_children(|parent| {
-            //         // bevy logo (image)
-            //         parent.spawn(ImageBundle {
-            //             style: Style {
-            //                 size: Size::new(Val::Px(500.0), Val::Auto),
-            //                 ..default()
-            //             },
-            //             image: ui_image,
-            //             ..default()
-            //         });
-            //     });
-        // }
 
     });
 

@@ -61,7 +61,7 @@ impl AdderTranscoder {
                             // .output_events_filename("/home/andrew/Downloads/events.adder".to_string())
                             .color(true)
                             .contrast_thresholds(ui_state.adder_tresh as u8, ui_state.adder_tresh as u8)
-                            .show_display(true)
+                            .show_display(false)
                             .time_parameters(ui_state.delta_t_ref as u32, ui_state.delta_t_max as u32)
                             .finish() {
                             Ok(source) => {
@@ -135,14 +135,12 @@ pub(crate) fn consume_source(
     let image_mat = &source.get_video().instantaneous_frame;
 
     // convert bgr u8 image to rgba u8 image
-    let mut image_mat_rgba = Mat::default();
-    imgproc::cvt_color(&image_mat, &mut image_mat_rgba, imgproc::COLOR_BGR2RGBA, 4).unwrap();
-    // let mut image_mat_rgb_32f = Mat::default();
-    // Mat::convert_to(&image_mat_rgba, &mut image_mat_rgb_32f, CV_32FC3, 1.0/255.0, 0.0).unwrap();
-    let mut image_mat_rgba_32f = Mat::default();
-    Mat::convert_to(&image_mat_rgba, &mut image_mat_rgba_32f, CV_32FC4, 1.0/255.0, 0.0).unwrap();
-    highgui::imshow("tmp", &image_mat_rgba_32f).unwrap();
-    highgui::wait_key(1).unwrap();
+    let mut image_mat_bgra = Mat::default();
+    imgproc::cvt_color(&image_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
+    // let mut image_mat_rgba_32f = Mat::default();
+    // Mat::convert_to(&image_mat_rgba, &mut image_mat_rgba_32f, CV_32FC4, 1.0/255.0, 0.0).unwrap();
+    // highgui::imshow("tmp", &image_mat_rgba_32f).unwrap();
+    // highgui::wait_key(1).unwrap();
 
     let image_bevy = Image::new(
         Extent3d {
@@ -152,10 +150,12 @@ pub(crate) fn consume_source(
         },
 
         TextureDimension::D2,
-        Vec::from(image_mat_rgba_32f.data_bytes().unwrap()),
-        TextureFormat::Rgba32Float);
+        Vec::from(image_mat_bgra.data_bytes().unwrap()),
+        TextureFormat::Bgra8UnormSrgb);
     transcoder.live_image = image_bevy;
 
+
+    // images.remove(&handles.image_view);
 
     let handle = images.add(transcoder.live_image.clone());
     handles.image_view = handle;
