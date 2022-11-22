@@ -166,7 +166,14 @@ fn ui_example(
     let mut size= Default::default();
     if let Some(image) = images.get(&handles.image_view) {
         texture_id = Some(egui_ctx.add_image(handles.image_view.clone()));
-        size = bevy_egui::egui::Vec2 { x: 800.0, y: (800.0/image.texture_descriptor.size.width as f32) * image.texture_descriptor.size.height as f32 }
+        size = match (image.texture_descriptor.size.width as f32, image.texture_descriptor.size.height as f32) {
+            (a, b) if a > b => {
+                bevy_egui::egui::Vec2 { x: 800.0, y: (800.0/a) * b }
+            }
+            (a, b) => {
+                bevy_egui::egui::Vec2 { x: (600.0/b) * a, y: 600.0 }
+            }
+        }
     }
 
     egui::CentralPanel::default().show(egui_ctx.ctx_mut(), |ui| {
