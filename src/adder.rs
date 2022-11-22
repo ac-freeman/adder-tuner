@@ -11,8 +11,8 @@ use adder_codec_rs::transcoder::source::video::Source;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy_egui::egui::TextureFilter;
 use bevy_egui::EguiContext;
-use crate::{replace_adder_transcoder, UiState};
-use opencv::core::{Mat};
+use crate::{Images, replace_adder_transcoder, UiState};
+use opencv::core::{CV_32FC4, Mat};
 use opencv::videoio::{VideoCapture, CAP_PROP_FPS, CAP_PROP_FRAME_COUNT, CAP_PROP_POS_FRAMES};
 use opencv::{imgproc, prelude::*, videoio, Result};
 use bevy::{
@@ -95,6 +95,7 @@ impl AdderTranscoder {
 
 pub(crate) fn consume_source(
     mut images: ResMut<Assets<Image>>,
+    mut handles: ResMut<Images>,
     mut egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
     mut commands: Commands,
@@ -136,6 +137,8 @@ pub(crate) fn consume_source(
     // convert bgr u8 image to rgba u8 image
     let mut image_mat_rgba = Mat::default();
     imgproc::cvt_color(&image_mat, &mut image_mat_rgba, imgproc::COLOR_BGR2RGBA, 4).unwrap();
+    let mut image_mat_rgba_32f = Mat::default();
+    Mat::convert_to(&image_mat_rgba, &mut image_mat_rgba_32f, CV_32FC4, 1.0/255.0, 0.0).unwrap();
 
     let image_bevy = Image::new(
         Extent3d {
@@ -144,11 +147,14 @@ pub(crate) fn consume_source(
             depth_or_array_layers: 1,
         },
 
-        TextureDimension::D3,
-        Vec::from(image_mat_rgba.data_bytes().unwrap()),
-        TextureFormat::Rgba8Uint);
+        TextureDimension::D2,
+        Vec::from(image_mat_rgba_32f.data_bytes().unwrap()),
+        TextureFormat::Rgba32Float);
     transcoder.live_image = image_bevy;
-    images.add(transcoder.live_image.clone());
+
+
+    let handle = images.add(transcoder.live_image.clone());
+    handles.image_view = handle;
 
 
     // let egui_texture_handle = ui_state
