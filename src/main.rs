@@ -9,21 +9,6 @@ use bevy_egui::egui::{Color32, RichText};
 use bevy_editor_pls::prelude::*;
 use crate::adder::{AdderTranscoder, consume_source};
 
-struct Images {
-    bevy_icon: Handle<Image>,
-    bevy_icon_inverted: Handle<Image>,
-}
-
-impl FromWorld for Images {
-    fn from_world(world: &mut World) -> Self {
-        let asset_server = world.get_resource_mut::<AssetServer>().unwrap();
-        Self {
-            bevy_icon: asset_server.load("icon.png"),
-            bevy_icon_inverted: asset_server.load("icon_inverted.png"),
-        }
-    }
-}
-
 /// This example demonstrates the following functionality and use-cases of bevy_egui:
 /// - rendering loaded assets;
 /// - toggling hidpi scaling (by pressing '/' button);
@@ -33,6 +18,7 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(AdderTranscoder::default())
+        .insert_resource(Images::default())
         .init_resource::<UiState>()
         .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
@@ -46,6 +32,11 @@ fn main() {
         .run();
 }
 
+#[derive(Resource, Default)]
+struct Images {
+    image_view: Handle<Image>,
+}
+
 #[derive(Resource)]
 struct UiState {
     label: String,
@@ -56,6 +47,7 @@ struct UiState {
     drop_target: MyDropTarget,
     inverted: bool,
     egui_texture_handle: Option<egui::TextureHandle>,
+    // image: Handle<Image>,
     source_name: RichText,
     is_window_open: bool,
 }
@@ -71,6 +63,7 @@ impl Default for UiState {
             drop_target: Default::default(),
             inverted: false,
             egui_texture_handle: None,
+            // image: Default::default(),
             source_name: RichText::new("No file selected yet"),
             is_window_open: true
         }
@@ -109,6 +102,9 @@ fn update_ui_scale_factor(
 }
 
 fn ui_example(
+    mut commands: Commands,
+    handles: Res<Images>,
+    mut images: ResMut<Assets<Image>>,
     mut egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
 ) {
@@ -172,6 +168,37 @@ fn ui_example(
 
 
         ui.label(ui_state.source_name.clone());
+
+
+        if let Some(image) = images.get(&handles.image_view) {
+            let ui_image = UiImage::from(handles.image_view.clone_weak());
+
+            // ui.image(ui_image);
+
+            commands
+                .spawn(NodeBundle {
+                    style: Style {
+                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        position_type: PositionType::Absolute,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::FlexStart,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    // bevy logo (image)
+                    parent.spawn(ImageBundle {
+                        style: Style {
+                            size: Size::new(Val::Px(500.0), Val::Auto),
+                            ..default()
+                        },
+                        image: ui_image,
+                        ..default()
+                    });
+                });
+        }
+
     });
 
     egui::Window::new("Window")

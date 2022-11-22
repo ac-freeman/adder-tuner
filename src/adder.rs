@@ -2,19 +2,31 @@ use std::error::Error;
 use std::ffi::OsStr;
 use std::fmt;
 use std::path::PathBuf;
-use bevy::prelude::{Commands, Query, ResMut, Resource};
+use bevy::prelude::{Commands, Image, NodeBundle, Query, ResMut, Resource};
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::davis_source::DavisSource;
 use adder_codec_rs::SourceCamera;
 use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
 use adder_codec_rs::transcoder::source::video::Source;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use bevy_egui::egui::TextureFilter;
+use bevy_egui::EguiContext;
 use crate::{replace_adder_transcoder, UiState};
+use opencv::core::{Mat};
+use opencv::videoio::{VideoCapture, CAP_PROP_FPS, CAP_PROP_FRAME_COUNT, CAP_PROP_POS_FRAMES};
+use opencv::{imgproc, prelude::*, videoio, Result};
+use bevy::{
+    input::mouse::{MouseScrollUnit, MouseWheel},
+    prelude::*,
+    winit::WinitSettings,
+};
 
 
 #[derive(Resource, Default)]
 pub struct AdderTranscoder {
     framed_source: Option<FramedSource>,
     davis_source: Option<DavisSource>,
+    live_image: Image,
 }
 
 #[derive(Debug)]
@@ -56,6 +68,7 @@ impl AdderTranscoder {
                                 Ok(AdderTranscoder {
                                     framed_source: Some(source),
                                     davis_source: None,
+                                    live_image: Default::default(),
                                 })
                             }
                             Err(e) => {
@@ -66,9 +79,11 @@ impl AdderTranscoder {
 
                     }
                     Some("aedat4") => {
+                        todo!();
                         Ok(AdderTranscoder {
                             framed_source: None,
                             davis_source: None,
+                            live_image: Default::default(),
                         })
                     }
                     Some(_) => {Err(Box::new(AdderTranscoderError("Invalid file type".into())))}
@@ -78,9 +93,12 @@ impl AdderTranscoder {
     }
 }
 
-pub(crate) fn consume_source( mut ui_state: ResMut<UiState>,
-                   mut commands: Commands,
-                              mut transcoder: ResMut<AdderTranscoder>) {
+pub(crate) fn consume_source(
+    mut images: ResMut<Assets<Image>>,
+    mut egui_ctx: ResMut<EguiContext>,
+    mut ui_state: ResMut<UiState>,
+    mut commands: Commands,
+    mut transcoder: ResMut<AdderTranscoder>) {
 
     let mut source: &mut dyn Source = {
 
@@ -112,4 +130,39 @@ pub(crate) fn consume_source( mut ui_state: ResMut<UiState>,
         .unwrap();
 
     source.consume(1, &pool).unwrap();
+
+    let image_mat = &source.get_video().instantaneous_frame;
+
+    // convert bgr u8 image to rgba u8 image
+    let mut image_mat_rgba = Mat::default();
+    imgproc::cvt_color(&image_mat, &mut image_mat_rgba, imgproc::COLOR_BGR2RGBA, 4).unwrap();
+
+    let image_bevy = Image::new(
+        Extent3d {
+            width: source.get_video().width.into(),
+            height: source.get_video().height.into(),
+            depth_or_array_layers: 1,
+        },
+
+        TextureDimension::D3,
+        Vec::from(image_mat_rgba.data_bytes().unwrap()),
+        TextureFormat::Rgba8Uint);
+    transcoder.live_image = image_bevy;
+    images.add(transcoder.live_image.clone());
+
+
+    // let egui_texture_handle = ui_state
+    //     .egui_texture_handle
+    //     .get_or_insert_with(|| {
+    //
+    //         egui_ctx.ctx_mut().load_texture(
+    //             "example-image",
+    //             transcoder.live_image.clone().data,
+    //             TextureFilter::Nearest,
+    //         )
+    //     })
+    //     .clone();
+
+
+    // egui_ctx.add_image(egui_texture_handle)
 }
