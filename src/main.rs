@@ -11,7 +11,7 @@ use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 use bevy_egui::egui::{Color32, RichText};
 use bevy_editor_pls::prelude::*;
 use rayon::current_num_threads;
-use crate::adder::{AdderTranscoder, consume_source};
+use crate::adder::{AdderTranscoder, consume_source, update_adder_params};
 
 /// This example demonstrates the following functionality and use-cases of bevy_egui:
 /// - rendering loaded assets;
@@ -27,8 +27,8 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
                 title: "ADΔER Tuner".to_string(),
-                width: 500.,
-                height: 300.,
+                width: 1280.,
+                height: 720.,
                 present_mode: PresentMode::AutoVsync,
                 ..default()
             },
@@ -43,6 +43,7 @@ fn main() {
         .add_system(update_ui_scale_factor)
         .add_system(ui_example)
         .add_system(file_drop)
+        .add_system(update_adder_params)
         .add_system(consume_source)
         .run();
 }
@@ -130,11 +131,15 @@ fn ui_example(
         .show(egui_ctx.ctx_mut(), |ui| {
             ui.heading("Side Panel");
 
-            ui.add(egui::Slider::new(&mut ui_state.delta_t_ref, 0.0..=1.0e4).text("Δt_ref"));
+            let dtm_multiplier = ui_state.delta_t_max / ui_state.delta_t_ref;
+            ui.add(egui::Slider::new(&mut ui_state.delta_t_ref, 1.0..=1.0e4).text("Δt_ref"));
             if ui.button("Increment").clicked() {
                 ui_state.delta_t_ref += 1.0;
             }
-            ui.add(egui::Slider::new(&mut ui_state.delta_t_max, 0.0..=1.0e7).text("Δt_max"));
+
+            ui_state.delta_t_max = ui_state.delta_t_ref * dtm_multiplier;
+            let current_dt_ref = ui_state.delta_t_ref.clone();
+            ui.add(egui::Slider::new(&mut ui_state.delta_t_max, current_dt_ref..=1.0e7).text("Δt_max"));
             if ui.button("Increment").clicked() {
                 ui_state.delta_t_max += 1.0;
             }

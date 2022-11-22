@@ -93,6 +93,45 @@ impl AdderTranscoder {
     }
 }
 
+pub(crate) fn update_adder_params(
+    mut images: ResMut<Assets<Image>>,
+    mut handles: ResMut<Images>,
+    mut egui_ctx: ResMut<EguiContext>,
+    mut ui_state: ResMut<UiState>,
+    mut commands: Commands,
+    mut transcoder: ResMut<AdderTranscoder>) {
+    let mut source: &mut dyn Source = {
+
+        match &mut transcoder.framed_source {
+            None => {
+                match &mut transcoder.davis_source {
+                    None => { return; }
+                    Some(source) => {
+                        source
+                    }
+                }
+            }
+            Some(source) => {
+                if source.scale != ui_state.scale
+                    || source.get_ref_time() != ui_state.delta_t_ref as u32 {
+                    let source_name = ui_state.source_name.clone();
+                    let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
+                    replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), current_frame);
+                    return;
+                }
+                source
+            }
+        }
+    };
+
+    let video = source.get_video_mut();
+    video.update_adder_thresh_pos(ui_state.adder_tresh as u8);
+    video.update_adder_thresh_neg(ui_state.adder_tresh as u8);
+    video.update_delta_t_max(ui_state.delta_t_max as u32);
+
+
+}
+
 pub(crate) fn consume_source(
     mut images: ResMut<Assets<Image>>,
     mut handles: ResMut<Images>,
@@ -113,12 +152,12 @@ pub(crate) fn consume_source(
                 }
             }
             Some(source) => {
-                if source.scale != ui_state.scale {
-                    let source_name = ui_state.source_name.clone();
-                    let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
-                    replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), current_frame);
-                    return;
-                }
+                // if source.scale != ui_state.scale {
+                //     let source_name = ui_state.source_name.clone();
+                //     let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
+                //     replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), current_frame);
+                //     return;
+                // }
                 source
             }
         }
