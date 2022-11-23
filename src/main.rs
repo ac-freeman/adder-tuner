@@ -84,6 +84,10 @@ struct UiState {
     adder_tresh_slider: f32,
     scale: f64,
     scale_slider: f64,
+    events_per_sec: f64,
+    events_ppc_per_sec: f64,
+    events_ppc_total: u64,
+    events_total: u64,
     drop_target: MyDropTarget,
     inverted: bool,
     egui_texture_handle: Option<egui::TextureHandle>,
@@ -106,6 +110,10 @@ impl Default for UiState {
             adder_tresh_slider: 10.0,
             scale: 0.5,
             scale_slider: 0.5,
+            events_per_sec: 0.,
+            events_ppc_per_sec: 0.,
+            events_ppc_total: 0,
+            events_total: 0,
             drop_target: Default::default(),
             inverted: false,
             egui_texture_handle: None,
@@ -222,13 +230,26 @@ fn ui_example(
         egui::warn_if_debug_build(ui);
 
         ui.separator();
+
         ui.heading("Drag and drop your source file here.");
 
 
 
         ui.label(ui_state.source_name.clone());
 
-        // ui.label()
+        ui.label(format!(
+            "{:.2} transcoded FPS\t\
+            {:.2} events per source sec\t\
+            {:.2} events PPC per source sec\t\
+            {:.0} events total\t\
+            {:.0} events PPC total
+            ",
+                1. / time.delta_seconds(),
+                ui_state.events_per_sec,
+                ui_state.events_ppc_per_sec,
+                ui_state.events_total,
+                ui_state.events_ppc_total
+        ));
 
 
         match (image, texture_id) {
@@ -305,6 +326,10 @@ fn file_drop(
 }
 
 pub(crate) fn replace_adder_transcoder(commands: &mut Commands, mut ui_state: &mut ResMut<UiState>, path_buf: &std::path::PathBuf, current_frame: u32) {
+    ui_state.events_per_sec = 0.0;
+    ui_state.events_ppc_total = 0;
+    ui_state.events_total = 0;
+    ui_state.events_ppc_per_sec = 0.0;
     match AdderTranscoder::new(path_buf, &mut ui_state, current_frame) {
         Ok(transcoder) => {
             commands.remove_resource::<AdderTranscoder>();
