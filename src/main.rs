@@ -150,6 +150,7 @@ fn update_ui_scale_factor(
 
 fn ui_example(
     mut commands: Commands,
+    time: Res<Time>, // Time passed since last frame
     handles: Res<Images>,
     mut images: ResMut<Assets<Image>>,
     mut egui_ctx: ResMut<EguiContext>,
@@ -166,7 +167,7 @@ fn ui_example(
                 ui_state.delta_t_ref_slider += 1.0;
             }
 
-            ui.add(egui::Slider::new(&mut ui_state.delta_t_max_mult_slider, 2..=1000).text("Δt_max"));
+            ui.add(egui::Slider::new(&mut ui_state.delta_t_max_mult_slider, 2..=1000).text("Δt_max multiplier"));
             if ui.button("Increment").clicked() {
                 ui_state.delta_t_max_mult_slider += 1;
             }
@@ -221,16 +222,13 @@ fn ui_example(
         egui::warn_if_debug_build(ui);
 
         ui.separator();
-
-        ui.heading("Central Panel");
-        ui.label("The central panel the region left after adding TopPanel's and SidePanel's");
-        ui.label("It is often a great place for big things, like drawings:");
-
         ui.heading("Drag and drop your source file here.");
 
 
 
         ui.label(ui_state.source_name.clone());
+
+        // ui.label()
 
 
         match (image, texture_id) {
