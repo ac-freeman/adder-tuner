@@ -1,18 +1,18 @@
 mod adder;
 
-use std::cmp::min;
-use std::error::Error;
+
+
 use std::ops::RangeInclusive;
 use adder_codec_rs::transcoder::source::video::InstantaneousViewMode;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
-use bevy_editor_pls::egui::TextureId;
+
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
-use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, Layout, RichText, Ui};
-use bevy_editor_pls::prelude::*;
-use bevy_egui::egui::Align::Center;
+use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, RichText, Ui};
+
+
 use rayon::current_num_threads;
 use crate::adder::{AdderTranscoder, consume_source, update_adder_params};
 
@@ -165,10 +165,10 @@ fn update_ui_scale_factor(
 }
 
 fn ui_example(
-    mut commands: Commands,
+    _commands: Commands,
     time: Res<Time>, // Time passed since last frame
     handles: Res<Images>,
-    mut images: ResMut<Assets<Image>>,
+    images: ResMut<Assets<Image>>,
     mut egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
 ) {
@@ -309,12 +309,12 @@ fn file_drop(
     }
 }
 
-pub(crate) fn replace_adder_transcoder(commands: &mut Commands, mut ui_state: &mut ResMut<UiState>, path_buf: &std::path::PathBuf, current_frame: u32) {
+pub(crate) fn replace_adder_transcoder(commands: &mut Commands, ui_state: &mut ResMut<UiState>, path_buf: &std::path::PathBuf, current_frame: u32) {
     ui_state.events_per_sec = 0.0;
     ui_state.events_ppc_total = 0;
     ui_state.events_total = 0;
     ui_state.events_ppc_per_sec = 0.0;
-    match AdderTranscoder::new(path_buf, &mut ui_state, current_frame) {
+    match AdderTranscoder::new(path_buf, ui_state, current_frame) {
         Ok(transcoder) => {
             commands.remove_resource::<AdderTranscoder>();
             commands.insert_resource
@@ -335,7 +335,7 @@ pub(crate) fn replace_adder_transcoder(commands: &mut Commands, mut ui_state: &m
     };
 }
 
-fn side_panel_grid_contents(ui: &mut Ui, mut ui_state: &mut ResMut<UiState>) {
+fn side_panel_grid_contents(ui: &mut Ui, ui_state: &mut ResMut<UiState>) {
     let dtr_max = ui_state.delta_t_ref_max;
     ui.label("Δt_ref:");
     slider_pm(ui, &mut ui_state.delta_t_ref_slider, 1.0..=dtr_max, 10.0);

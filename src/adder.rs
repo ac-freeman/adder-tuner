@@ -1,24 +1,22 @@
 use std::error::Error;
-use std::ffi::OsStr;
+
 use std::fmt;
 use std::path::PathBuf;
-use bevy::prelude::{Commands, Image, NodeBundle, Query, ResMut, Resource};
+use bevy::prelude::{Commands, Image, ResMut, Resource};
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::davis_source::DavisSource;
-use adder_codec_rs::{Event, SourceCamera};
+use adder_codec_rs::{SourceCamera};
 use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
 use adder_codec_rs::transcoder::source::video::{Source, SourceError};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy_egui::egui::TextureFilter;
+
 use bevy_egui::EguiContext;
 use crate::{Images, replace_adder_transcoder, UiState, UiStateMemory};
-use opencv::core::{CV_32FC3, CV_32FC4, Mat};
-use opencv::videoio::{VideoCapture, CAP_PROP_FPS, CAP_PROP_FRAME_COUNT, CAP_PROP_POS_FRAMES};
-use opencv::{imgproc, prelude::*, videoio, Result, highgui};
+use opencv::core::{Mat};
+
+use opencv::{imgproc, prelude::*, Result};
 use bevy::{
-    input::mouse::{MouseScrollUnit, MouseWheel},
     prelude::*,
-    winit::WinitSettings,
 };
 
 
@@ -41,7 +39,7 @@ impl fmt::Display for AdderTranscoderError {
 impl Error for AdderTranscoderError {}
 
 impl AdderTranscoder {
-    pub(crate) fn new(path_buf: &PathBuf, mut ui_state: &mut ResMut<UiState>, current_frame: u32) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(path_buf: &PathBuf, ui_state: &mut ResMut<UiState>, current_frame: u32) -> Result<Self, Box<dyn Error>> {
         match path_buf.extension() {
             None => {
                 Err(Box::new(AdderTranscoderError("Invalid file type".into())))
@@ -72,7 +70,7 @@ impl AdderTranscoder {
                                     live_image: Default::default(),
                                 })
                             }
-                            Err(e) => {
+                            Err(_e) => {
                                 Err(Box::new(AdderTranscoderError("Invalid file type".into())))
                             }
                         }
@@ -95,9 +93,9 @@ impl AdderTranscoder {
 }
 
 pub(crate) fn update_adder_params(
-    mut images: ResMut<Assets<Image>>,
-    mut handles: ResMut<Images>,
-    mut egui_ctx: ResMut<EguiContext>,
+    _images: ResMut<Assets<Image>>,
+    _handles: ResMut<Images>,
+    _egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
     mut ui_state_mem: ResMut<UiStateMemory>,
     mut commands: Commands,
@@ -127,7 +125,7 @@ pub(crate) fn update_adder_params(
 
 
 
-    let mut source: &mut dyn Source = {
+    let source: &mut dyn Source = {
 
         match &mut transcoder.framed_source {
             None => {
@@ -174,12 +172,12 @@ pub(crate) fn update_adder_params(
 pub(crate) fn consume_source(
     mut images: ResMut<Assets<Image>>,
     mut handles: ResMut<Images>,
-    mut egui_ctx: ResMut<EguiContext>,
+    _egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
     mut commands: Commands,
     mut transcoder: ResMut<AdderTranscoder>) {
 
-    let mut source: &mut dyn Source = {
+    let source: &mut dyn Source = {
 
         match &mut transcoder.framed_source {
             None => {
