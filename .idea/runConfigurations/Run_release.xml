@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="run --release --package adder-tuner --bin adder-tuner --features bevy/dynamic" />
+    <option name="command" value="run --release --package adder-viz --bin adder-viz --features bevy/dynamic" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="channel" value="DEFAULT" />
     <option name="requiredFeatures" value="true" />

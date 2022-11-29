@@ -213,10 +213,10 @@ pub(crate) fn consume_source(
                 ui_state.events_total += events_vec.len() as u64;
                 ui_state.events_per_sec += events_vec.len() as f64;
             }
-            ui_state.events_ppc_total = ui_state.events_total as u64 / (source.get_video().width as u64 * source.get_video().height as u64);
+            ui_state.events_ppc_total = ui_state.events_total as u64 / (source.get_video().width as u64 * source.get_video().height as u64 * source.get_video().channels as u64);
             let source_fps = source.get_video().get_tps() as f64 / source.get_video().get_ref_time() as f64;
             ui_state.events_per_sec = ui_state.events_per_sec  as f64 * source_fps;
-            ui_state.events_ppc_per_sec = ui_state.events_per_sec / (source.get_video().width as f64 * source.get_video().height as f64);
+            ui_state.events_ppc_per_sec = ui_state.events_per_sec / (source.get_video().width as f64 * source.get_video().height as f64 * source.get_video().channels as f64);
         }
         Err(SourceError::Open) => {
 
