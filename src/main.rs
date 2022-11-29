@@ -368,18 +368,9 @@ fn side_panel_grid_contents(ui: &mut Ui, ui_state: &mut ResMut<UiState>) {
     ui.horizontal(|ui| {
         ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Intensity, "Intensity");
         ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::D, "D");
-        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Delta_t, "Δt");
+        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::DeltaT, "Δt");
     });
     ui.end_row();
-
-    // let grid = egui::Grid::new("some_unique_id");
-    // grid.show(ui, |ui| {
-    //
-    //     ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Intensity, "Intensity");
-    //     ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::D, "D");
-    //     ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Delta_t, "Δt");
-    //     ui.end_row();
-    // });
 }
 
 fn slider_pm<Num: emath::Numeric + Pm>(ui: &mut Ui, value: &mut Num, range: RangeInclusive<Num>, interval: Num) {
