@@ -175,8 +175,10 @@ fn ui_example(
     egui::SidePanel::left("side_panel")
         .default_width(300.0)
         .show(egui_ctx.ctx_mut(), |ui| {
-            global_dark_light_mode_switch(ui);
-            ui.heading("ADΔER Parameters");
+            ui.horizontal(|ui|{
+                ui.heading("ADΔER Parameters");
+                global_dark_light_mode_switch(ui);
+            });
 
             egui::Grid::new("my_grid")
                 .num_columns(2)
