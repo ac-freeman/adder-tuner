@@ -4,6 +4,10 @@ I also just wanted to learn the Bevy and egui libraries, and this is a good excu
 
 ![](https://github.com/ac-freeman/adder-tuner/blob/main/examples/screenshot.png)
 
+# Dependencies
+
+You may need to install the Bevy dependencies described [here](https://bevyengine.org/learn/book/getting-started/setup/) and install OpenCV as described [here](https://github.com/twistedfall/opencv-rust).
+
 # Installation
 
 `cargo install adder-viz`
