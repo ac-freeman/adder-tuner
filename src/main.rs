@@ -2,6 +2,7 @@ mod adder;
 
 use std::cmp::min;
 use std::error::Error;
+use std::ops::RangeInclusive;
 use adder_codec_rs::transcoder::source::video::InstantaneousViewMode;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::ecs::system::Resource;
@@ -9,8 +10,9 @@ use bevy::prelude::*;
 use bevy::window::PresentMode;
 use bevy_editor_pls::egui::TextureId;
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
-use bevy_egui::egui::{Color32, global_dark_light_mode_switch, RichText};
+use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, Layout, RichText, Ui};
 use bevy_editor_pls::prelude::*;
+use bevy_egui::egui::Align::Center;
 use rayon::current_num_threads;
 use crate::adder::{AdderTranscoder, consume_source, update_adder_params};
 
@@ -174,48 +176,16 @@ fn ui_example(
         .default_width(300.0)
         .show(egui_ctx.ctx_mut(), |ui| {
             global_dark_light_mode_switch(ui);
-            ui.heading("Side Panel");
+            ui.heading("ADΔER Parameters");
 
-            let dtr_max = ui_state.delta_t_ref_max;
-            ui.add(egui::Slider::new(&mut ui_state.delta_t_ref_slider, 1.0..=dtr_max).text("Δt_ref"));
-            if ui.button("Increment").clicked() {
-                ui_state.delta_t_ref_slider += 1.0;
-            }
+            egui::Grid::new("my_grid")
+                .num_columns(2)
+                .spacing([10.0, 4.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    side_panel_grid_contents(ui, &mut ui_state);
+                });
 
-            ui.add(egui::Slider::new(&mut ui_state.delta_t_max_mult_slider, 2..=1000).text("Δt_max multiplier"));
-            if ui.button("Increment").clicked() {
-                ui_state.delta_t_max_mult_slider += 1;
-            }
-            ui.add(egui::Slider::new(&mut ui_state.adder_tresh_slider, 0.0..=255.0).text("ADΔER threshold"));
-            if ui.button("Increment").clicked() {
-                ui_state.adder_tresh_slider += 1.0;
-            }
-
-            ui.add(egui::Slider::new(&mut ui_state.thread_count, 1..=current_num_threads()-1).text("Thread count"));
-            if ui.button("Increment").clicked() {
-                ui_state.thread_count += 1;
-                ui_state.thread_count = ui_state.thread_count.min(current_num_threads());
-            }
-
-            ui.add(egui::Slider::new(&mut ui_state.scale_slider, 0.01..=1.0).text("Video scale"));
-            if ui.button("Decrement").clicked() {
-                ui_state.scale_slider -= 0.1;
-                ui_state.scale_slider = ui_state.scale_slider.max(0.01);
-            }
-            if ui.button("Increment").clicked() {
-                ui_state.scale_slider += 0.1;
-                ui_state.scale_slider = ui_state.scale_slider.min(1.0);
-            }
-
-            ui.allocate_space(egui::Vec2::new(1.0, 100.0));
-
-            ui.allocate_space(egui::Vec2::new(1.0, 10.0));
-            // ui.checkbox(&mut ui_state.is_window_open, "Window Is Open");
-            ui.checkbox(&mut ui_state.color, "Color?");
-
-            ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Intensity, "Intensity");
-            ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::D, "D");
-            ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Delta_t, "Δt");
         });
 
     egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
@@ -363,3 +333,134 @@ pub(crate) fn replace_adder_transcoder(commands: &mut Commands, mut ui_state: &m
     };
 }
 
+fn side_panel_grid_contents(ui: &mut Ui, mut ui_state: &mut ResMut<UiState>) {
+    let dtr_max = ui_state.delta_t_ref_max;
+    ui.label("Δt_ref:");
+    slider_pm(ui, &mut ui_state.delta_t_ref_slider, 1.0..=dtr_max, 10.0);
+    ui.end_row();
+
+    ui.label("Δt_max multiplier:");
+    slider_pm(ui, &mut ui_state.delta_t_max_mult_slider, 2..=1000, 10);
+    ui.end_row();
+
+    ui.label("ADΔER threshold:");
+    slider_pm(ui, &mut ui_state.adder_tresh_slider, 0.0..=255.0, 1.0);
+    ui.end_row();
+
+
+    ui.label("Thread count:");
+    slider_pm(ui, &mut ui_state.thread_count, 1..=current_num_threads()-1, 1);
+    ui.end_row();
+
+    ui.label("Video scale:");
+    slider_pm(ui, &mut ui_state.scale_slider, 0.01..=1.0, 0.1);
+    ui.end_row();
+
+
+    ui.label("Channels:");
+    ui.checkbox(&mut ui_state.color, "Color?");
+    ui.end_row();
+
+
+    ui.label("View mode:");
+    ui.horizontal(|ui| {
+        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Intensity, "Intensity");
+        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::D, "D");
+        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Delta_t, "Δt");
+    });
+    ui.end_row();
+
+    // let grid = egui::Grid::new("some_unique_id");
+    // grid.show(ui, |ui| {
+    //
+    //     ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Intensity, "Intensity");
+    //     ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::D, "D");
+    //     ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Delta_t, "Δt");
+    //     ui.end_row();
+    // });
+}
+
+fn slider_pm<Num: emath::Numeric + Pm>(ui: &mut Ui, value: &mut Num, range: RangeInclusive<Num>, interval: Num) {
+    ui.horizontal(|ui| {
+        if ui.button("-").clicked() {
+            value.decrement(range.start(), &interval);
+        }
+        ui.add(egui::Slider::new(value, range.clone()));
+        if ui.button("+").clicked() {
+            value.increment(range.end(), &interval);
+        }
+    });
+}
+
+trait Pm {
+    fn increment(&mut self, bound: &Self, interval: &Self);
+    fn decrement(&mut self, bound: &Self, interval: &Self);
+}
+
+macro_rules! impl_pm_float {
+    ($t: ident) => {
+        impl Pm for $t {
+            #[inline(always)]
+            fn increment(&mut self, bound: &Self, interval: &Self) {
+                #[allow(trivial_numeric_casts)]
+                {
+                    *self += *interval;
+                    if *self > *bound {
+                        *self = *bound
+                    }
+                }
+            }
+
+            #[inline(always)]
+            fn decrement(&mut self, bound: &Self, interval: &Self) {
+                #[allow(trivial_numeric_casts)]
+                {
+                    *self -= *interval;
+                    if *self < *bound {
+                        *self = *bound
+                    }
+                }
+            }
+        }
+    };
+}
+macro_rules! impl_pm_integer {
+    ($t: ident) => {
+        impl Pm for $t {
+            #[inline(always)]
+            fn increment(&mut self, bound: &Self, interval: &Self) {
+                #[allow(trivial_numeric_casts)]
+                {
+                    *self = self.saturating_add(*interval);
+                    if *self > *bound {
+                        *self = *bound
+                    }
+                }
+            }
+
+            #[inline(always)]
+            fn decrement(&mut self, bound: &Self, interval: &Self) {
+                #[allow(trivial_numeric_casts)]
+                {
+                    *self = self.saturating_sub(*interval);
+                    if *self < *bound {
+                        *self = *bound
+                    }
+                }
+            }
+        }
+    };
+}
+
+impl_pm_float!(f32);
+impl_pm_float!(f64);
+impl_pm_integer!(i8);
+impl_pm_integer!(u8);
+impl_pm_integer!(i16);
+impl_pm_integer!(u16);
+impl_pm_integer!(i32);
+impl_pm_integer!(u32);
+impl_pm_integer!(i64);
+impl_pm_integer!(u64);
+impl_pm_integer!(isize);
+impl_pm_integer!(usize);
