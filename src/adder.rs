@@ -1,24 +1,22 @@
 use std::error::Error;
-use std::ffi::OsStr;
+
 use std::fmt;
 use std::path::PathBuf;
-use bevy::prelude::{Commands, Image, NodeBundle, Query, ResMut, Resource};
+use bevy::prelude::{Commands, Image, ResMut, Resource};
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::davis_source::DavisSource;
-use adder_codec_rs::{Event, SourceCamera};
+use adder_codec_rs::{SourceCamera};
 use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
 use adder_codec_rs::transcoder::source::video::{Source, SourceError};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy_egui::egui::TextureFilter;
+
 use bevy_egui::EguiContext;
 use crate::{Images, replace_adder_transcoder, UiState, UiStateMemory};
-use opencv::core::{CV_32FC3, CV_32FC4, Mat};
-use opencv::videoio::{VideoCapture, CAP_PROP_FPS, CAP_PROP_FRAME_COUNT, CAP_PROP_POS_FRAMES};
-use opencv::{imgproc, prelude::*, videoio, Result, highgui};
+use opencv::core::{Mat};
+
+use opencv::{imgproc, prelude::*, Result};
 use bevy::{
-    input::mouse::{MouseScrollUnit, MouseWheel},
     prelude::*,
-    winit::WinitSettings,
 };
 
 
@@ -41,7 +39,7 @@ impl fmt::Display for AdderTranscoderError {
 impl Error for AdderTranscoderError {}
 
 impl AdderTranscoder {
-    pub(crate) fn new(path_buf: &PathBuf, mut ui_state: &mut ResMut<UiState>, current_frame: u32) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(path_buf: &PathBuf, ui_state: &mut ResMut<UiState>, current_frame: u32) -> Result<Self, Box<dyn Error>> {
         match path_buf.extension() {
             None => {
                 Err(Box::new(AdderTranscoderError("Invalid file type".into())))
@@ -59,7 +57,7 @@ impl AdderTranscoder {
                             .scale(ui_state.scale)
                             .communicate_events(true)
                             // .output_events_filename("/home/andrew/Downloads/events.adder".to_string())
-                            .color(true)
+                            .color(ui_state.color)
                             .contrast_thresholds(ui_state.adder_tresh as u8, ui_state.adder_tresh as u8)
                             .show_display(false)
                             .time_parameters(ui_state.delta_t_ref as u32, ui_state.delta_t_max_mult * ui_state.delta_t_ref as u32 )
@@ -72,7 +70,7 @@ impl AdderTranscoder {
                                     live_image: Default::default(),
                                 })
                             }
-                            Err(e) => {
+                            Err(_e) => {
                                 Err(Box::new(AdderTranscoderError("Invalid file type".into())))
                             }
                         }
@@ -81,11 +79,11 @@ impl AdderTranscoder {
                     }
                     Some("aedat4") => {
                         todo!();
-                        Ok(AdderTranscoder {
-                            framed_source: None,
-                            davis_source: None,
-                            live_image: Default::default(),
-                        })
+                        // Ok(AdderTranscoder {
+                        //     framed_source: None,
+                        //     davis_source: None,
+                        //     live_image: Default::default(),
+                        // })
                     }
                     Some(_) => {Err(Box::new(AdderTranscoderError("Invalid file type".into())))}
                 }
@@ -95,9 +93,9 @@ impl AdderTranscoder {
 }
 
 pub(crate) fn update_adder_params(
-    mut images: ResMut<Assets<Image>>,
-    mut handles: ResMut<Images>,
-    mut egui_ctx: ResMut<EguiContext>,
+    _images: ResMut<Assets<Image>>,
+    _handles: ResMut<Images>,
+    _egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
     mut ui_state_mem: ResMut<UiStateMemory>,
     mut commands: Commands,
@@ -127,7 +125,7 @@ pub(crate) fn update_adder_params(
 
 
 
-    let mut source: &mut dyn Source = {
+    let source: &mut dyn Source = {
 
         match &mut transcoder.framed_source {
             None => {
@@ -140,7 +138,18 @@ pub(crate) fn update_adder_params(
             }
             Some(source) => {
                 if source.scale != ui_state.scale
-                    || source.get_ref_time() != ui_state.delta_t_ref as u32 {
+                    || source.get_ref_time() != ui_state.delta_t_ref as u32
+                    || match source.get_video().channels {
+                            1 => {
+                                // True if the transcoder is gray, but the user wants color
+                                ui_state.color
+                            }
+                            _ => {
+                                // True if the transcoder is color, but the user wants gray
+                                !ui_state.color
+                            }
+                        }
+                {
                     let source_name = ui_state.source_name.clone();
                     let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
                     replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), current_frame);
@@ -155,6 +164,7 @@ pub(crate) fn update_adder_params(
     video.update_adder_thresh_pos(ui_state.adder_tresh as u8);
     video.update_adder_thresh_neg(ui_state.adder_tresh as u8);
     video.update_delta_t_max(ui_state.delta_t_max_mult as u32 * video.get_ref_time());
+    video.instantaneous_view_mode = ui_state.view_mode_radio_state;
 
 
 }
@@ -162,12 +172,12 @@ pub(crate) fn update_adder_params(
 pub(crate) fn consume_source(
     mut images: ResMut<Assets<Image>>,
     mut handles: ResMut<Images>,
-    mut egui_ctx: ResMut<EguiContext>,
+    _egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
     mut commands: Commands,
     mut transcoder: ResMut<AdderTranscoder>) {
 
-    let mut source: &mut dyn Source = {
+    let source: &mut dyn Source = {
 
         match &mut transcoder.framed_source {
             None => {
@@ -196,8 +206,18 @@ pub(crate) fn consume_source(
         .build()
         .unwrap();
 
+    ui_state.events_per_sec = 0.;
     match source.consume(1, &pool) {
-        Ok(_) => {}
+        Ok(events_vec_vec) => {
+            for events_vec in events_vec_vec {
+                ui_state.events_total += events_vec.len() as u64;
+                ui_state.events_per_sec += events_vec.len() as f64;
+            }
+            ui_state.events_ppc_total = ui_state.events_total as u64 / (source.get_video().width as u64 * source.get_video().height as u64);
+            let source_fps = source.get_video().get_tps() as f64 / source.get_video().get_ref_time() as f64;
+            ui_state.events_per_sec = ui_state.events_per_sec  as f64 * source_fps;
+            ui_state.events_ppc_per_sec = ui_state.events_per_sec / (source.get_video().width as f64 * source.get_video().height as f64);
+        }
         Err(SourceError::Open) => {
 
         }

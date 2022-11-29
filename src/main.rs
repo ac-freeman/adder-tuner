@@ -1,15 +1,18 @@
 mod adder;
 
-use std::cmp::min;
-use std::error::Error;
+
+
+use std::ops::RangeInclusive;
+use adder_codec_rs::transcoder::source::video::InstantaneousViewMode;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
-use bevy_editor_pls::egui::TextureId;
+
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
-use bevy_egui::egui::{Color32, RichText};
-use bevy_editor_pls::prelude::*;
+use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, RichText, Ui};
+
+
 use rayon::current_num_threads;
 use crate::adder::{AdderTranscoder, consume_source, update_adder_params};
 
@@ -74,7 +77,6 @@ impl Default for UiStateMemory {
 
 #[derive(Resource)]
 struct UiState {
-    label: String,
     delta_t_ref: f32,
     delta_t_ref_max: f32,
     delta_t_max_mult: u32,
@@ -84,19 +86,21 @@ struct UiState {
     adder_tresh_slider: f32,
     scale: f64,
     scale_slider: f64,
-    drop_target: MyDropTarget,
-    inverted: bool,
-    egui_texture_handle: Option<egui::TextureHandle>,
+    events_per_sec: f64,
+    events_ppc_per_sec: f64,
+    events_ppc_total: u64,
+    events_total: u64,
     // image: Handle<Image>,
     source_name: RichText,
     thread_count: usize,
     is_window_open: bool,
+    color: bool,
+    view_mode_radio_state: InstantaneousViewMode,
 }
 
 impl Default for UiState {
     fn default() -> Self {
         UiState {
-            label: "".to_string(),
             delta_t_ref: 255.0,
             delta_t_ref_max: 255.0,
             delta_t_max_mult: 120,
@@ -106,13 +110,16 @@ impl Default for UiState {
             adder_tresh_slider: 10.0,
             scale: 0.5,
             scale_slider: 0.5,
-            drop_target: Default::default(),
-            inverted: false,
-            egui_texture_handle: None,
+            events_per_sec: 0.,
+            events_ppc_per_sec: 0.,
+            events_ppc_total: 0,
+            events_total: 0,
             // image: Default::default(),
             source_name: RichText::new("No file selected yet"),
             thread_count: 4,
-            is_window_open: true
+            is_window_open: true,
+            color: true,
+            view_mode_radio_state: InstantaneousViewMode::Intensity,
         }
     }
 }
@@ -126,6 +133,7 @@ fn configure_visuals(mut egui_ctx: ResMut<EguiContext>) {
 
 fn configure_ui_state(mut ui_state: ResMut<UiState>) {
     ui_state.is_window_open = true;
+    ui_state.color = true;
 }
 
 fn update_ui_scale_factor(
@@ -149,52 +157,29 @@ fn update_ui_scale_factor(
 }
 
 fn ui_example(
-    mut commands: Commands,
+    _commands: Commands,
+    time: Res<Time>, // Time passed since last frame
     handles: Res<Images>,
-    mut images: ResMut<Assets<Image>>,
+    images: ResMut<Assets<Image>>,
     mut egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UiState>,
 ) {
     egui::SidePanel::left("side_panel")
         .default_width(300.0)
         .show(egui_ctx.ctx_mut(), |ui| {
-            ui.heading("Side Panel");
+            ui.horizontal(|ui|{
+                ui.heading("ADΔER Parameters");
+                global_dark_light_mode_switch(ui);
+            });
 
-            let dtr_max = ui_state.delta_t_ref_max;
-            ui.add(egui::Slider::new(&mut ui_state.delta_t_ref_slider, 1.0..=dtr_max).text("Δt_ref"));
-            if ui.button("Increment").clicked() {
-                ui_state.delta_t_ref_slider += 1.0;
-            }
+            egui::Grid::new("my_grid")
+                .num_columns(2)
+                .spacing([10.0, 4.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    side_panel_grid_contents(ui, &mut ui_state);
+                });
 
-            ui.add(egui::Slider::new(&mut ui_state.delta_t_max_mult_slider, 2..=1000).text("Δt_max"));
-            if ui.button("Increment").clicked() {
-                ui_state.delta_t_max_mult_slider += 1;
-            }
-            ui.add(egui::Slider::new(&mut ui_state.adder_tresh_slider, 0.0..=255.0).text("ADΔER threshold"));
-            if ui.button("Increment").clicked() {
-                ui_state.adder_tresh_slider += 1.0;
-            }
-
-            ui.add(egui::Slider::new(&mut ui_state.thread_count, 1..=current_num_threads()).text("Thread count"));
-            if ui.button("Increment").clicked() {
-                ui_state.thread_count += 1;
-                ui_state.thread_count = ui_state.thread_count.min(current_num_threads());
-            }
-
-            ui.add(egui::Slider::new(&mut ui_state.scale_slider, 0.01..=1.0).text("Video scale"));
-            if ui.button("Decrement").clicked() {
-                ui_state.scale_slider -= 0.1;
-                ui_state.scale_slider = ui_state.scale_slider.max(0.01);
-            }
-            if ui.button("Increment").clicked() {
-                ui_state.scale_slider += 0.1;
-                ui_state.scale_slider = ui_state.scale_slider.min(1.0);
-            }
-
-            ui.allocate_space(egui::Vec2::new(1.0, 100.0));
-
-            ui.allocate_space(egui::Vec2::new(1.0, 10.0));
-            ui.checkbox(&mut ui_state.is_window_open, "Window Is Open");
         });
 
     egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
@@ -217,14 +202,8 @@ fn ui_example(
     };
 
     egui::CentralPanel::default().show(egui_ctx.ctx_mut(), |ui| {
-        ui.heading("Egui Template");
         egui::warn_if_debug_build(ui);
-
-        ui.separator();
-
-        ui.heading("Central Panel");
-        ui.label("The central panel the region left after adding TopPanel's and SidePanel's");
-        ui.label("It is often a great place for big things, like drawings:");
+        // ui.separator();
 
         ui.heading("Drag and drop your source file here.");
 
@@ -232,13 +211,27 @@ fn ui_example(
 
         ui.label(ui_state.source_name.clone());
 
+        ui.label(format!(
+            "{:.2} transcoded FPS\t\
+            {:.2} events per source sec\t\
+            {:.2} events PPC per source sec\t\
+            {:.0} events total\t\
+            {:.0} events PPC total
+            ",
+                1. / time.delta_seconds(),
+                ui_state.events_per_sec,
+                ui_state.events_ppc_per_sec,
+                ui_state.events_total,
+                ui_state.events_ppc_total
+        ));
+
+
+
 
         match (image, texture_id) {
             (Some(image), Some(texture_id)) => {
                 let avail_size = ui.available_size();
-                let mut size= Default::default();
-
-                size = match (image.texture_descriptor.size.width as f32, image.texture_descriptor.size.height as f32) {
+                let size = match (image.texture_descriptor.size.width as f32, image.texture_descriptor.size.height as f32) {
                     (a, b) if a/b > avail_size.x/avail_size.y => {
                         /*
                         The available space has a taller aspect ratio than the video
@@ -262,15 +255,15 @@ fn ui_example(
 
     });
 
-    egui::Window::new("Window")
-        .vscroll(true)
-        .open(&mut ui_state.is_window_open)
-        .show(egui_ctx.ctx_mut(), |ui| {
-            ui.label("Windows can be moved by dragging them.");
-            ui.label("They are automatically sized based on contents.");
-            ui.label("You can turn on resizing and scrolling if you like.");
-            ui.label("You would normally chose either panels OR windows.");
-        });
+    // egui::Window::new("Window")
+    //     .vscroll(true)
+    //     .open(&mut ui_state.is_window_open)
+    //     .show(egui_ctx.ctx_mut(), |ui| {
+    //         ui.label("Windows can be moved by dragging them.");
+    //         ui.label("They are automatically sized based on contents.");
+    //         ui.label("You can turn on resizing and scrolling if you like.");
+    //         ui.label("You would normally chose either panels OR windows.");
+    //     });
 }
 
 #[derive(Component, Default)]
@@ -306,8 +299,12 @@ fn file_drop(
     }
 }
 
-pub(crate) fn replace_adder_transcoder(commands: &mut Commands, mut ui_state: &mut ResMut<UiState>, path_buf: &std::path::PathBuf, current_frame: u32) {
-    match AdderTranscoder::new(path_buf, &mut ui_state, current_frame) {
+pub(crate) fn replace_adder_transcoder(commands: &mut Commands, ui_state: &mut ResMut<UiState>, path_buf: &std::path::PathBuf, current_frame: u32) {
+    ui_state.events_per_sec = 0.0;
+    ui_state.events_ppc_total = 0;
+    ui_state.events_total = 0;
+    ui_state.events_ppc_per_sec = 0.0;
+    match AdderTranscoder::new(path_buf, ui_state, current_frame) {
         Ok(transcoder) => {
             commands.remove_resource::<AdderTranscoder>();
             commands.insert_resource
@@ -328,3 +325,125 @@ pub(crate) fn replace_adder_transcoder(commands: &mut Commands, mut ui_state: &m
     };
 }
 
+fn side_panel_grid_contents(ui: &mut Ui, ui_state: &mut ResMut<UiState>) {
+    let dtr_max = ui_state.delta_t_ref_max;
+    ui.label("Δt_ref:");
+    slider_pm(ui, &mut ui_state.delta_t_ref_slider, 1.0..=dtr_max, 10.0);
+    ui.end_row();
+
+    ui.label("Δt_max multiplier:");
+    slider_pm(ui, &mut ui_state.delta_t_max_mult_slider, 2..=1000, 10);
+    ui.end_row();
+
+    ui.label("ADΔER threshold:");
+    slider_pm(ui, &mut ui_state.adder_tresh_slider, 0.0..=255.0, 1.0);
+    ui.end_row();
+
+
+    ui.label("Thread count:");
+    slider_pm(ui, &mut ui_state.thread_count, 1..=current_num_threads()-1, 1);
+    ui.end_row();
+
+    ui.label("Video scale:");
+    slider_pm(ui, &mut ui_state.scale_slider, 0.01..=1.0, 0.1);
+    ui.end_row();
+
+
+    ui.label("Channels:");
+    ui.checkbox(&mut ui_state.color, "Color?");
+    ui.end_row();
+
+
+    ui.label("View mode:");
+    ui.horizontal(|ui| {
+        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Intensity, "Intensity");
+        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::D, "D");
+        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::DeltaT, "Δt");
+    });
+    ui.end_row();
+}
+
+fn slider_pm<Num: emath::Numeric + Pm>(ui: &mut Ui, value: &mut Num, range: RangeInclusive<Num>, interval: Num) {
+    ui.horizontal(|ui| {
+        if ui.button("-").clicked() {
+            value.decrement(range.start(), &interval);
+        }
+        ui.add(egui::Slider::new(value, range.clone()));
+        if ui.button("+").clicked() {
+            value.increment(range.end(), &interval);
+        }
+    });
+}
+
+trait Pm {
+    fn increment(&mut self, bound: &Self, interval: &Self);
+    fn decrement(&mut self, bound: &Self, interval: &Self);
+}
+
+macro_rules! impl_pm_float {
+    ($t: ident) => {
+        impl Pm for $t {
+            #[inline(always)]
+            fn increment(&mut self, bound: &Self, interval: &Self) {
+                #[allow(trivial_numeric_casts)]
+                {
+                    *self += *interval;
+                    if *self > *bound {
+                        *self = *bound
+                    }
+                }
+            }
+
+            #[inline(always)]
+            fn decrement(&mut self, bound: &Self, interval: &Self) {
+                #[allow(trivial_numeric_casts)]
+                {
+                    *self -= *interval;
+                    if *self < *bound {
+                        *self = *bound
+                    }
+                }
+            }
+        }
+    };
+}
+macro_rules! impl_pm_integer {
+    ($t: ident) => {
+        impl Pm for $t {
+            #[inline(always)]
+            fn increment(&mut self, bound: &Self, interval: &Self) {
+                #[allow(trivial_numeric_casts)]
+                {
+                    *self = self.saturating_add(*interval);
+                    if *self > *bound {
+                        *self = *bound
+                    }
+                }
+            }
+
+            #[inline(always)]
+            fn decrement(&mut self, bound: &Self, interval: &Self) {
+                #[allow(trivial_numeric_casts)]
+                {
+                    *self = self.saturating_sub(*interval);
+                    if *self < *bound {
+                        *self = *bound
+                    }
+                }
+            }
+        }
+    };
+}
+
+impl_pm_float!(f32);
+impl_pm_float!(f64);
+impl_pm_integer!(i8);
+impl_pm_integer!(u8);
+impl_pm_integer!(i16);
+impl_pm_integer!(u16);
+impl_pm_integer!(i32);
+impl_pm_integer!(u32);
+impl_pm_integer!(i64);
+impl_pm_integer!(u64);
+impl_pm_integer!(isize);
+impl_pm_integer!(usize);
