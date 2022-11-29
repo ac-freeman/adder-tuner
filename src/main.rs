@@ -77,7 +77,6 @@ impl Default for UiStateMemory {
 
 #[derive(Resource)]
 struct UiState {
-    label: String,
     delta_t_ref: f32,
     delta_t_ref_max: f32,
     delta_t_max_mult: u32,
@@ -91,9 +90,6 @@ struct UiState {
     events_ppc_per_sec: f64,
     events_ppc_total: u64,
     events_total: u64,
-    drop_target: MyDropTarget,
-    inverted: bool,
-    egui_texture_handle: Option<egui::TextureHandle>,
     // image: Handle<Image>,
     source_name: RichText,
     thread_count: usize,
@@ -105,7 +101,6 @@ struct UiState {
 impl Default for UiState {
     fn default() -> Self {
         UiState {
-            label: "".to_string(),
             delta_t_ref: 255.0,
             delta_t_ref_max: 255.0,
             delta_t_max_mult: 120,
@@ -119,9 +114,6 @@ impl Default for UiState {
             events_ppc_per_sec: 0.,
             events_ppc_total: 0,
             events_total: 0,
-            drop_target: Default::default(),
-            inverted: false,
-            egui_texture_handle: None,
             // image: Default::default(),
             source_name: RichText::new("No file selected yet"),
             thread_count: 4,
@@ -239,9 +231,7 @@ fn ui_example(
         match (image, texture_id) {
             (Some(image), Some(texture_id)) => {
                 let avail_size = ui.available_size();
-                let mut size= Default::default();
-
-                size = match (image.texture_descriptor.size.width as f32, image.texture_descriptor.size.height as f32) {
+                let size = match (image.texture_descriptor.size.width as f32, image.texture_descriptor.size.height as f32) {
                     (a, b) if a/b > avail_size.x/avail_size.y => {
                         /*
                         The available space has a taller aspect ratio than the video

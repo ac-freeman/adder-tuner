@@ -79,11 +79,11 @@ impl AdderTranscoder {
                     }
                     Some("aedat4") => {
                         todo!();
-                        Ok(AdderTranscoder {
-                            framed_source: None,
-                            davis_source: None,
-                            live_image: Default::default(),
-                        })
+                        // Ok(AdderTranscoder {
+                        //     framed_source: None,
+                        //     davis_source: None,
+                        //     live_image: Default::default(),
+                        // })
                     }
                     Some(_) => {Err(Box::new(AdderTranscoderError("Invalid file type".into())))}
                 }
