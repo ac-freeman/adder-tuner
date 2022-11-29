@@ -59,7 +59,7 @@ impl AdderTranscoder {
                             .scale(ui_state.scale)
                             .communicate_events(true)
                             // .output_events_filename("/home/andrew/Downloads/events.adder".to_string())
-                            .color(true)
+                            .color(ui_state.color)
                             .contrast_thresholds(ui_state.adder_tresh as u8, ui_state.adder_tresh as u8)
                             .show_display(false)
                             .time_parameters(ui_state.delta_t_ref as u32, ui_state.delta_t_max_mult * ui_state.delta_t_ref as u32 )
@@ -140,7 +140,18 @@ pub(crate) fn update_adder_params(
             }
             Some(source) => {
                 if source.scale != ui_state.scale
-                    || source.get_ref_time() != ui_state.delta_t_ref as u32 {
+                    || source.get_ref_time() != ui_state.delta_t_ref as u32
+                    || match source.get_video().channels {
+                            1 => {
+                                // True if the transcoder is gray, but the user wants color
+                                ui_state.color
+                            }
+                            _ => {
+                                // True if the transcoder is color, but the user wants gray
+                                !ui_state.color
+                            }
+                        }
+                {
                     let source_name = ui_state.source_name.clone();
                     let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
                     replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), current_frame);

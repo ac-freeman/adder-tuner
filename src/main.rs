@@ -8,7 +8,7 @@ use bevy::prelude::*;
 use bevy::window::PresentMode;
 use bevy_editor_pls::egui::TextureId;
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
-use bevy_egui::egui::{Color32, RichText};
+use bevy_egui::egui::{Color32, global_dark_light_mode_switch, RichText};
 use bevy_editor_pls::prelude::*;
 use rayon::current_num_threads;
 use crate::adder::{AdderTranscoder, consume_source, update_adder_params};
@@ -95,6 +95,7 @@ struct UiState {
     source_name: RichText,
     thread_count: usize,
     is_window_open: bool,
+    color: bool,
 }
 
 impl Default for UiState {
@@ -120,7 +121,8 @@ impl Default for UiState {
             // image: Default::default(),
             source_name: RichText::new("No file selected yet"),
             thread_count: 4,
-            is_window_open: true
+            is_window_open: true,
+            color: true,
         }
     }
 }
@@ -134,6 +136,7 @@ fn configure_visuals(mut egui_ctx: ResMut<EguiContext>) {
 
 fn configure_ui_state(mut ui_state: ResMut<UiState>) {
     ui_state.is_window_open = true;
+    ui_state.color = true;
 }
 
 fn update_ui_scale_factor(
@@ -167,6 +170,7 @@ fn ui_example(
     egui::SidePanel::left("side_panel")
         .default_width(300.0)
         .show(egui_ctx.ctx_mut(), |ui| {
+            global_dark_light_mode_switch(ui);
             ui.heading("Side Panel");
 
             let dtr_max = ui_state.delta_t_ref_max;
@@ -184,7 +188,7 @@ fn ui_example(
                 ui_state.adder_tresh_slider += 1.0;
             }
 
-            ui.add(egui::Slider::new(&mut ui_state.thread_count, 1..=current_num_threads()).text("Thread count"));
+            ui.add(egui::Slider::new(&mut ui_state.thread_count, 1..=current_num_threads()-1).text("Thread count"));
             if ui.button("Increment").clicked() {
                 ui_state.thread_count += 1;
                 ui_state.thread_count = ui_state.thread_count.min(current_num_threads());
@@ -203,7 +207,8 @@ fn ui_example(
             ui.allocate_space(egui::Vec2::new(1.0, 100.0));
 
             ui.allocate_space(egui::Vec2::new(1.0, 10.0));
-            ui.checkbox(&mut ui_state.is_window_open, "Window Is Open");
+            // ui.checkbox(&mut ui_state.is_window_open, "Window Is Open");
+            ui.checkbox(&mut ui_state.color, "Color?");
         });
 
     egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
@@ -226,10 +231,8 @@ fn ui_example(
     };
 
     egui::CentralPanel::default().show(egui_ctx.ctx_mut(), |ui| {
-        ui.heading("Egui Template");
         egui::warn_if_debug_build(ui);
-
-        ui.separator();
+        // ui.separator();
 
         ui.heading("Drag and drop your source file here.");
 
@@ -250,6 +253,8 @@ fn ui_example(
                 ui_state.events_total,
                 ui_state.events_ppc_total
         ));
+
+
 
 
         match (image, texture_id) {
@@ -281,15 +286,15 @@ fn ui_example(
 
     });
 
-    egui::Window::new("Window")
-        .vscroll(true)
-        .open(&mut ui_state.is_window_open)
-        .show(egui_ctx.ctx_mut(), |ui| {
-            ui.label("Windows can be moved by dragging them.");
-            ui.label("They are automatically sized based on contents.");
-            ui.label("You can turn on resizing and scrolling if you like.");
-            ui.label("You would normally chose either panels OR windows.");
-        });
+    // egui::Window::new("Window")
+    //     .vscroll(true)
+    //     .open(&mut ui_state.is_window_open)
+    //     .show(egui_ctx.ctx_mut(), |ui| {
+    //         ui.label("Windows can be moved by dragging them.");
+    //         ui.label("They are automatically sized based on contents.");
+    //         ui.label("You can turn on resizing and scrolling if you like.");
+    //         ui.label("You would normally chose either panels OR windows.");
+    //     });
 }
 
 #[derive(Component, Default)]
