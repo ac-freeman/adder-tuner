@@ -2,6 +2,7 @@ mod adder;
 
 use std::cmp::min;
 use std::error::Error;
+use adder_codec_rs::transcoder::source::video::InstantaneousViewMode;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
@@ -96,6 +97,7 @@ struct UiState {
     thread_count: usize,
     is_window_open: bool,
     color: bool,
+    view_mode_radio_state: InstantaneousViewMode,
 }
 
 impl Default for UiState {
@@ -123,6 +125,7 @@ impl Default for UiState {
             thread_count: 4,
             is_window_open: true,
             color: true,
+            view_mode_radio_state: InstantaneousViewMode::Intensity,
         }
     }
 }
@@ -209,6 +212,10 @@ fn ui_example(
             ui.allocate_space(egui::Vec2::new(1.0, 10.0));
             // ui.checkbox(&mut ui_state.is_window_open, "Window Is Open");
             ui.checkbox(&mut ui_state.color, "Color?");
+
+            ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Intensity, "Intensity");
+            ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::D, "D");
+            ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Delta_t, "Δt");
         });
 
     egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {

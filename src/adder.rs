@@ -166,6 +166,7 @@ pub(crate) fn update_adder_params(
     video.update_adder_thresh_pos(ui_state.adder_tresh as u8);
     video.update_adder_thresh_neg(ui_state.adder_tresh as u8);
     video.update_delta_t_max(ui_state.delta_t_max_mult as u32 * video.get_ref_time());
+    video.instantaneous_view_mode = ui_state.view_mode_radio_state;
 
 
 }
