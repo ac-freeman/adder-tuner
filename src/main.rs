@@ -3,6 +3,7 @@ mod adder;
 
 
 use std::ops::RangeInclusive;
+use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::video::InstantaneousViewMode;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
@@ -91,6 +92,7 @@ struct ParamsUiState {
     thread_count: usize,
     color: bool,
     view_mode_radio_state: InstantaneousViewMode,
+    davis_mode_radio_state: DavisTranscoderMode,
 }
 
 impl Default for ParamsUiState {
@@ -108,6 +110,7 @@ impl Default for ParamsUiState {
             thread_count: 4,
             color: true,
             view_mode_radio_state: InstantaneousViewMode::Intensity,
+            davis_mode_radio_state: DavisTranscoderMode::RawDavis,
         }
     }
 }
@@ -389,6 +392,16 @@ fn side_panel_grid_contents(transcoder: Res<AdderTranscoder>, ui: &mut Ui, ui_st
         ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Intensity, "Intensity");
         ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::D, "D");
         ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::DeltaT, "Δt");
+    });
+    ui.end_row();
+
+    ui.label("Davis mode:");
+    ui.add_enabled_ui(!enabled, |ui| {
+        ui.horizontal(|ui| {
+            ui.radio_value(&mut ui_state.davis_mode_radio_state, DavisTranscoderMode::Framed, "Framed recon");
+            ui.radio_value(&mut ui_state.davis_mode_radio_state, DavisTranscoderMode::RawDavis, "Raw DAVIS");
+            ui.radio_value(&mut ui_state.davis_mode_radio_state, DavisTranscoderMode::RawDvs, "Raw DVS");
+        });
     });
     ui.end_row();
 }

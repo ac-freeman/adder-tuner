@@ -81,6 +81,18 @@ impl AdderTranscoder {
 
                     }
                     Some("aedat4") => {
+
+                        let events_only = match &ui_state.davis_mode_radio_state {
+                            DavisTranscoderMode::Framed => {false}
+                            DavisTranscoderMode::RawDavis => {false}
+                            DavisTranscoderMode::RawDvs => {true}
+                        };
+                        let deblur_only = match &ui_state.davis_mode_radio_state {
+                            DavisTranscoderMode::Framed => false,
+                            DavisTranscoderMode::RawDavis => true,
+                            DavisTranscoderMode::RawDvs => true,
+                        };
+
                         let rt = tokio::runtime::Builder::new_multi_thread()
                             .worker_threads(ui_state.thread_count)
                             .enable_time()
@@ -105,8 +117,8 @@ impl AdderTranscoder {
                             Compression::None,
                             346,
                             260,
-                            true,
-                            false,
+                            deblur_only,
+                            events_only,
                             1000.0,
                             true,
                         ));
@@ -122,7 +134,7 @@ impl AdderTranscoder {
                             ui_state.adder_tresh as u8,
                             false,
                             rt,
-                            DavisTranscoderMode::RawDavis, // TODO
+                            ui_state.davis_mode_radio_state,
                             false,
                         )
                             .unwrap();
@@ -183,6 +195,12 @@ pub(crate) fn update_adder_params(
                 match &mut transcoder.davis_source {
                     None => { return; }
                     Some(source) => {
+                        if source.mode != ui_state.davis_mode_radio_state
+                        {
+                            let source_name = ui_info_state.source_name.clone();
+                            replace_adder_transcoder(&mut commands, &mut ui_state, &mut ui_info_state, &PathBuf::from(source_name.text()), 0);
+                            return;
+                        }
                         source
                     }
                 }
