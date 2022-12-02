@@ -113,13 +113,13 @@ impl AdderTranscoder {
                             false,
                             false,
                             false,
-                            500.0,
+                            ui_state.davis_output_fps,
                             Compression::None,
                             346,
                             260,
                             deblur_only,
                             events_only,
-                            1000.0,
+                            1000.0, // Target latency (not used)
                             true,
                         ));
 
@@ -196,6 +196,7 @@ pub(crate) fn update_adder_params(
                     None => { return; }
                     Some(source) => {
                         if source.mode != ui_state.davis_mode_radio_state
+                            || source.get_reconstructor().output_fps != ui_state.davis_output_fps
                         {
                             let source_name = ui_info_state.source_name.clone();
                             replace_adder_transcoder(&mut commands, &mut ui_state, &mut ui_info_state, &PathBuf::from(source_name.text()), 0);

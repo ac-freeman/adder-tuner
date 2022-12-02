@@ -93,6 +93,7 @@ struct ParamsUiState {
     color: bool,
     view_mode_radio_state: InstantaneousViewMode,
     davis_mode_radio_state: DavisTranscoderMode,
+    davis_output_fps: f64,
 }
 
 impl Default for ParamsUiState {
@@ -111,6 +112,7 @@ impl Default for ParamsUiState {
             color: true,
             view_mode_radio_state: InstantaneousViewMode::Intensity,
             davis_mode_radio_state: DavisTranscoderMode::RawDavis,
+            davis_output_fps: 500.0,
         }
     }
 }
@@ -395,7 +397,7 @@ fn side_panel_grid_contents(transcoder: Res<AdderTranscoder>, ui: &mut Ui, ui_st
     });
     ui.end_row();
 
-    ui.label("Davis mode:");
+    ui.label("DAVIS mode:");
     ui.add_enabled_ui(!enabled, |ui| {
         ui.horizontal(|ui| {
             ui.radio_value(&mut ui_state.davis_mode_radio_state, DavisTranscoderMode::Framed, "Framed recon");
@@ -403,6 +405,10 @@ fn side_panel_grid_contents(transcoder: Res<AdderTranscoder>, ui: &mut Ui, ui_st
             ui.radio_value(&mut ui_state.davis_mode_radio_state, DavisTranscoderMode::RawDvs, "Raw DVS");
         });
     });
+    ui.end_row();
+
+    ui.label("DAVIS deblurred FPS:");
+    slider_pm(!enabled, ui, &mut ui_state.davis_output_fps, 1.0..=10000.0, 50.0);
     ui.end_row();
 }
 
