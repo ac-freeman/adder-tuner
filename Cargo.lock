@@ -1616,8 +1616,6 @@ dependencies = [
 [[package]]
 name = "davis-edi-rs"
 version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "171f01abd98f0326b5f04e4bc9123d162e15bebdf3b2dde95ff019364c43e094"
 dependencies = [
  "aedat",
  "async-scoped",

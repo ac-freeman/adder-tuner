@@ -109,7 +109,7 @@ impl AdderTranscoder {
                             "".to_string(),
                             "file".to_string(), // TODO
                             0.15,
-                            true,
+                            ui_state.optimize_c,
                             false,
                             false,
                             false,
@@ -202,6 +202,9 @@ pub(crate) fn update_adder_params(
                             replace_adder_transcoder(&mut commands, &mut ui_state, &mut ui_info_state, &PathBuf::from(source_name.text()), 0);
                             return;
                         }
+                        // let tmp = source.get_reconstructor();
+                        let tmp = source.get_reconstructor_mut();
+                        tmp.set_optimize_c(ui_state.optimize_c);
                         source
                     }
                 }
