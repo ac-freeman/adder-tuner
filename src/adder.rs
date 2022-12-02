@@ -236,10 +236,6 @@ pub(crate) fn consume_source(
     // add alpha channel
     let mut image_mat_bgra = Mat::default();
     imgproc::cvt_color(&image_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
-    // let mut image_mat_rgba_32f = Mat::default();
-    // Mat::convert_to(&image_mat_rgba, &mut image_mat_rgba_32f, CV_32FC4, 1.0/255.0, 0.0).unwrap();
-    // highgui::imshow("tmp", &image_mat_rgba_32f).unwrap();
-    // highgui::wait_key(1).unwrap();
 
     let image_bevy = Image::new(
         Extent3d {
@@ -254,24 +250,6 @@ pub(crate) fn consume_source(
     transcoder.live_image = image_bevy;
 
 
-    // images.remove(&handles.image_view);
-
     let handle = images.add(transcoder.live_image.clone());
     handles.image_view = handle;
-
-
-    // let egui_texture_handle = ui_state
-    //     .egui_texture_handle
-    //     .get_or_insert_with(|| {
-    //
-    //         egui_ctx.ctx_mut().load_texture(
-    //             "example-image",
-    //             transcoder.live_image.clone().data,
-    //             TextureFilter::Nearest,
-    //         )
-    //     })
-    //     .clone();
-
-
-    // egui_ctx.add_image(egui_texture_handle)
 }
