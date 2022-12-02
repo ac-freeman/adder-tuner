@@ -20,7 +20,9 @@ checksum = "330223a1aecc308757b9926e9391c9b47f8ef2dbd8aea9df88312aea18c5e8d6"
 
 [[package]]
 name = "adder-codec-rs"
-version = "0.2.1"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8f23189514c64399ab8f0aa02a3f3a301f50a6bce8d425f58523666c0d6d48d"
 dependencies = [
  "aedat",
  "bincode",
@@ -1615,7 +1617,9 @@ dependencies = [
 
 [[package]]
 name = "davis-edi-rs"
-version = "0.1.4"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ec8427fd95075fa4142d6caf1bcbc547ac6406fd54713f3b248a61ddc716c26"
 dependencies = [
  "aedat",
  "async-scoped",
