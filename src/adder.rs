@@ -25,8 +25,8 @@ use bevy::{
 
 #[derive(Resource, Default)]
 pub struct AdderTranscoder {
-    framed_source: Option<FramedSource>,
-    davis_source: Option<DavisSource>,
+    pub(crate) framed_source: Option<FramedSource>,
+    pub(crate) davis_source: Option<DavisSource>,
     live_image: Image,
 }
 
@@ -117,7 +117,7 @@ impl AdderTranscoder {
                             (1000000) as u32, // TODO
                             1000000.0 / 500.0,
                             (1000000.0 * ui_state.delta_t_max_mult as f32) as u32, // TODO
-                            true,
+                            false,
                             ui_state.adder_tresh as u8,
                             ui_state.adder_tresh as u8,
                             false,
@@ -241,12 +241,6 @@ pub(crate) fn consume_source(
                 }
             }
             Some(source) => {
-                // if source.scale != ui_state.scale {
-                //     let source_name = ui_state.source_name.clone();
-                //     let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
-                //     replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), current_frame);
-                //     return;
-                // }
                 source
             }
         }
