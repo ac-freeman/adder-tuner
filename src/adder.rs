@@ -11,7 +11,7 @@ use adder_codec_rs::transcoder::source::video::{Source, SourceError};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use bevy_egui::EguiContext;
-use crate::{Images, replace_adder_transcoder, UiState, UiStateMemory};
+use crate::{Images, replace_adder_transcoder, ParamsUiState, UiStateMemory, InfoUiState};
 use opencv::core::{Mat};
 
 use opencv::{imgproc, prelude::*, Result};
@@ -39,7 +39,7 @@ impl fmt::Display for AdderTranscoderError {
 impl Error for AdderTranscoderError {}
 
 impl AdderTranscoder {
-    pub(crate) fn new(path_buf: &PathBuf, ui_state: &mut ResMut<UiState>, current_frame: u32) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(path_buf: &PathBuf, ui_state: &mut ResMut<ParamsUiState>, current_frame: u32) -> Result<Self, Box<dyn Error>> {
         match path_buf.extension() {
             None => {
                 Err(Box::new(AdderTranscoderError("Invalid file type".into())))
@@ -96,8 +96,9 @@ pub(crate) fn update_adder_params(
     _images: ResMut<Assets<Image>>,
     _handles: ResMut<Images>,
     _egui_ctx: ResMut<EguiContext>,
-    mut ui_state: ResMut<UiState>,
+    mut ui_state: ResMut<ParamsUiState>,
     mut ui_state_mem: ResMut<UiStateMemory>,
+    mut ui_info_state: ResMut<InfoUiState>,
     mut commands: Commands,
     mut transcoder: ResMut<AdderTranscoder>) {
     // First, check if the sliders have changed. If they have, don't do anything this frame.
@@ -150,9 +151,9 @@ pub(crate) fn update_adder_params(
                             }
                         }
                 {
-                    let source_name = ui_state.source_name.clone();
+                    let source_name = ui_info_state.source_name.clone();
                     let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
-                    replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), current_frame);
+                    replace_adder_transcoder(&mut commands, &mut ui_state, &mut ui_info_state, &PathBuf::from(source_name.text()), current_frame);
                     return;
                 }
                 source
@@ -173,7 +174,8 @@ pub(crate) fn consume_source(
     mut images: ResMut<Assets<Image>>,
     mut handles: ResMut<Images>,
     _egui_ctx: ResMut<EguiContext>,
-    mut ui_state: ResMut<UiState>,
+    mut ui_state: ResMut<ParamsUiState>,
+    mut ui_info_state: ResMut<InfoUiState>,
     mut commands: Commands,
     mut transcoder: ResMut<AdderTranscoder>) {
 
@@ -206,25 +208,25 @@ pub(crate) fn consume_source(
         .build()
         .unwrap();
 
-    ui_state.events_per_sec = 0.;
+    ui_info_state.events_per_sec = 0.;
     match source.consume(1, &pool) {
         Ok(events_vec_vec) => {
             for events_vec in events_vec_vec {
-                ui_state.events_total += events_vec.len() as u64;
-                ui_state.events_per_sec += events_vec.len() as f64;
+                ui_info_state.events_total += events_vec.len() as u64;
+                ui_info_state.events_per_sec += events_vec.len() as f64;
             }
-            ui_state.events_ppc_total = ui_state.events_total as u64 / (source.get_video().width as u64 * source.get_video().height as u64 * source.get_video().channels as u64);
+            ui_info_state.events_ppc_total = ui_info_state.events_total as u64 / (source.get_video().width as u64 * source.get_video().height as u64 * source.get_video().channels as u64);
             let source_fps = source.get_video().get_tps() as f64 / source.get_video().get_ref_time() as f64;
-            ui_state.events_per_sec = ui_state.events_per_sec  as f64 * source_fps;
-            ui_state.events_ppc_per_sec = ui_state.events_per_sec / (source.get_video().width as f64 * source.get_video().height as f64 * source.get_video().channels as f64);
+            ui_info_state.events_per_sec = ui_info_state.events_per_sec  as f64 * source_fps;
+            ui_info_state.events_ppc_per_sec = ui_info_state.events_per_sec / (source.get_video().width as f64 * source.get_video().height as f64 * source.get_video().channels as f64);
         }
         Err(SourceError::Open) => {
 
         }
         Err(_) => {
             // Start video over from the beginning
-            let source_name = ui_state.source_name.clone();
-            replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), 0);
+            let source_name = ui_info_state.source_name.clone();
+            replace_adder_transcoder(&mut commands, &mut ui_state, &mut ui_info_state, &PathBuf::from(source_name.text()), 0);
             return;
         }
     };

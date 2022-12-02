@@ -26,7 +26,8 @@ fn main() {
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(AdderTranscoder::default())
         .insert_resource(Images::default())
-        .init_resource::<UiState>()
+        .init_resource::<ParamsUiState>()
+        .init_resource::<InfoUiState>()
         .init_resource::<UiStateMemory>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
@@ -39,8 +40,8 @@ fn main() {
             ..default()
         }))
         .add_plugin(EguiPlugin)
-        .add_plugin(LogDiagnosticsPlugin::default())
-        .add_plugin(FrameTimeDiagnosticsPlugin)
+        // .add_plugin(LogDiagnosticsPlugin::default())
+        // .add_plugin(FrameTimeDiagnosticsPlugin)
         // .add_plugin(EditorPlugin)
         .add_startup_system(configure_visuals)
         .add_startup_system(configure_ui_state)
@@ -76,7 +77,7 @@ impl Default for UiStateMemory {
 }
 
 #[derive(Resource)]
-struct UiState {
+struct ParamsUiState {
     delta_t_ref: f32,
     delta_t_ref_max: f32,
     delta_t_max_mult: u32,
@@ -86,21 +87,14 @@ struct UiState {
     adder_tresh_slider: f32,
     scale: f64,
     scale_slider: f64,
-    events_per_sec: f64,
-    events_ppc_per_sec: f64,
-    events_ppc_total: u64,
-    events_total: u64,
-    // image: Handle<Image>,
-    source_name: RichText,
     thread_count: usize,
-    is_window_open: bool,
     color: bool,
     view_mode_radio_state: InstantaneousViewMode,
 }
 
-impl Default for UiState {
+impl Default for ParamsUiState {
     fn default() -> Self {
-        UiState {
+        ParamsUiState {
             delta_t_ref: 255.0,
             delta_t_ref_max: 255.0,
             delta_t_max_mult: 120,
@@ -110,15 +104,31 @@ impl Default for UiState {
             adder_tresh_slider: 10.0,
             scale: 0.5,
             scale_slider: 0.5,
+            thread_count: 4,
+            color: true,
+            view_mode_radio_state: InstantaneousViewMode::Intensity,
+        }
+    }
+}
+
+#[derive(Resource)]
+struct InfoUiState {
+    events_per_sec: f64,
+    events_ppc_per_sec: f64,
+    events_ppc_total: u64,
+    events_total: u64,
+    source_name: RichText,
+    view_mode_radio_state: InstantaneousViewMode,
+}
+
+impl Default for InfoUiState {
+    fn default() -> Self {
+        InfoUiState {
             events_per_sec: 0.,
             events_ppc_per_sec: 0.,
             events_ppc_total: 0,
             events_total: 0,
-            // image: Default::default(),
             source_name: RichText::new("No file selected yet"),
-            thread_count: 4,
-            is_window_open: true,
-            color: true,
             view_mode_radio_state: InstantaneousViewMode::Intensity,
         }
     }
@@ -131,8 +141,7 @@ fn configure_visuals(mut egui_ctx: ResMut<EguiContext>) {
     });
 }
 
-fn configure_ui_state(mut ui_state: ResMut<UiState>) {
-    ui_state.is_window_open = true;
+fn configure_ui_state(mut ui_state: ResMut<ParamsUiState>) {
     ui_state.color = true;
 }
 
@@ -157,12 +166,13 @@ fn update_ui_scale_factor(
 }
 
 fn ui_example(
-    _commands: Commands,
+    mut commands: Commands,
     time: Res<Time>, // Time passed since last frame
     handles: Res<Images>,
     images: ResMut<Assets<Image>>,
     mut egui_ctx: ResMut<EguiContext>,
-    mut ui_state: ResMut<UiState>,
+    mut ui_state: ResMut<ParamsUiState>,
+    mut ui_info_state: ResMut<InfoUiState>,
 ) {
     egui::SidePanel::left("side_panel")
         .default_width(300.0)
@@ -170,6 +180,14 @@ fn ui_example(
             ui.horizontal(|ui|{
                 ui.heading("ADΔER Parameters");
                 global_dark_light_mode_switch(ui);
+                if ui.add(egui::Button::new("Reset params")).clicked() {
+                    commands.insert_resource::<ParamsUiState>(Default::default());
+                }
+                if ui.add(egui::Button::new("Reset video")).clicked() {
+                    commands.insert_resource::<AdderTranscoder>(AdderTranscoder::default());
+                    commands.insert_resource::<InfoUiState>(InfoUiState::default());
+                    commands.insert_resource(Images::default());
+                }
             });
 
             egui::Grid::new("my_grid")
@@ -179,6 +197,7 @@ fn ui_example(
                 .show(ui, |ui| {
                     side_panel_grid_contents(ui, &mut ui_state);
                 });
+
 
         });
 
@@ -209,7 +228,7 @@ fn ui_example(
 
 
 
-        ui.label(ui_state.source_name.clone());
+        ui.label(ui_info_state.source_name.clone());
 
         ui.label(format!(
             "{:.2} transcoded FPS\t\
@@ -219,10 +238,10 @@ fn ui_example(
             {:.0} events PPC total
             ",
                 1. / time.delta_seconds(),
-                ui_state.events_per_sec,
-                ui_state.events_ppc_per_sec,
-                ui_state.events_total,
-                ui_state.events_ppc_total
+            ui_info_state.events_per_sec,
+            ui_info_state.events_ppc_per_sec,
+            ui_info_state.events_total,
+            ui_info_state.events_ppc_total
         ));
 
 
@@ -272,7 +291,8 @@ struct MyDropTarget;
 
 ///https://bevy-cheatbook.github.io/input/dnd.html
 fn file_drop(
-    mut ui_state: ResMut<UiState>,
+    mut ui_state: ResMut<ParamsUiState>,
+    mut ui_info_state: ResMut<InfoUiState>,
     mut commands: Commands,
     mut dnd_evr: EventReader<FileDragAndDrop>,
     query_ui_droptarget: Query<&Interaction, With<MyDropTarget>>,
@@ -294,16 +314,20 @@ fn file_drop(
                 }
             }
 
-            replace_adder_transcoder(&mut commands, &mut ui_state, path_buf, 0);
+            replace_adder_transcoder(&mut commands, &mut ui_state, &mut ui_info_state, path_buf, 0);
         }
     }
 }
 
-pub(crate) fn replace_adder_transcoder(commands: &mut Commands, ui_state: &mut ResMut<UiState>, path_buf: &std::path::PathBuf, current_frame: u32) {
-    ui_state.events_per_sec = 0.0;
-    ui_state.events_ppc_total = 0;
-    ui_state.events_total = 0;
-    ui_state.events_ppc_per_sec = 0.0;
+pub(crate) fn replace_adder_transcoder(commands: &mut Commands,
+                                       ui_state: &mut ResMut<ParamsUiState>,
+                                       mut ui_info_state: &mut ResMut<InfoUiState>,
+                                       path_buf: &std::path::PathBuf,
+                                       current_frame: u32) {
+    ui_info_state.events_per_sec = 0.0;
+    ui_info_state.events_ppc_total = 0;
+    ui_info_state.events_total = 0;
+    ui_info_state.events_ppc_per_sec = 0.0;
     match AdderTranscoder::new(path_buf, ui_state, current_frame) {
         Ok(transcoder) => {
             commands.remove_resource::<AdderTranscoder>();
@@ -311,7 +335,7 @@ pub(crate) fn replace_adder_transcoder(commands: &mut Commands, ui_state: &mut R
             (
                 transcoder
             );
-            ui_state.source_name = RichText::new(path_buf.to_str().unwrap()).color(Color32::DARK_GREEN);
+            ui_info_state.source_name = RichText::new(path_buf.to_str().unwrap()).color(Color32::DARK_GREEN);
 
         }
         Err(e) => {
@@ -320,12 +344,12 @@ pub(crate) fn replace_adder_transcoder(commands: &mut Commands, ui_state: &mut R
             (
                 AdderTranscoder::default()
             );
-            ui_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
+            ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
         }
     };
 }
 
-fn side_panel_grid_contents(ui: &mut Ui, ui_state: &mut ResMut<UiState>) {
+fn side_panel_grid_contents(ui: &mut Ui, ui_state: &mut ResMut<ParamsUiState>) {
     let dtr_max = ui_state.delta_t_ref_max;
     ui.label("Δt_ref:");
     slider_pm(ui, &mut ui_state.delta_t_ref_slider, 1.0..=dtr_max, 10.0);

@@ -21,8 +21,6 @@ checksum = "330223a1aecc308757b9926e9391c9b47f8ef2dbd8aea9df88312aea18c5e8d6"
 [[package]]
 name = "adder-codec-rs"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "256d373477aba504de63dda55c5d6f73822823e501c4a33367570b7e7a3f638c"
 dependencies = [
  "aedat",
  "bincode",

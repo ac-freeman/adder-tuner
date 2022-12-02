@@ -15,8 +15,8 @@ license-file = "LICENSE"
 keywords = ["neuromorphic", "visualization", "video", "asynchronous", "event"]
 
 [dependencies]
-adder-codec-rs = { version = "0.2.1", features = ["transcoder"] }
-#adder-codec-rs = { path = "/home/andrew/Code/adder-codec-rs", features = ["transcoder"] }
+#adder-codec-rs = { version = "0.2.1", features = ["transcoder"] }
+adder-codec-rs = { path = "/home/andrew/Code/adder-codec-rs", features = ["transcoder"] }
 bevy = { version = "0.9.0", features = ["bevy_dynamic_plugin"]}
 bevy_egui = "0.17.1"
 bevy_editor_pls = "0.2.0"
