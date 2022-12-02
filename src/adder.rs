@@ -8,7 +8,10 @@ use adder_codec_rs::transcoder::source::davis_source::DavisSource;
 use adder_codec_rs::{SourceCamera};
 use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
 use adder_codec_rs::transcoder::source::video::{Source, SourceError};
+use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use adder_codec_rs::davis_edi_rs::util::reconstructor::Reconstructor;
+use adder_codec_rs::aedat::base::ioheader_generated::Compression;
 
 use bevy_egui::EguiContext;
 use crate::{Images, replace_adder_transcoder, ParamsUiState, UiStateMemory, InfoUiState};
@@ -78,12 +81,59 @@ impl AdderTranscoder {
 
                     }
                     Some("aedat4") => {
-                        todo!();
-                        // Ok(AdderTranscoder {
-                        //     framed_source: None,
-                        //     davis_source: None,
-                        //     live_image: Default::default(),
-                        // })
+                        let rt = tokio::runtime::Builder::new_multi_thread()
+                            .worker_threads(ui_state.thread_count)
+                            .enable_time()
+                            .build()
+                            .unwrap();
+                        let dir = path_buf.parent().expect("File must be in some directory")
+                            .to_str().expect("Bad path").to_string();
+                        let filename = path_buf.file_name().expect("File must exist")
+                            .to_str().expect("Bad filename").to_string();
+                        eprintln!("{}", filename);
+                        let reconstructor = rt.block_on(Reconstructor::new(
+                            dir + "/",
+                            filename,
+                            "".to_string(),
+                            "file".to_string(), // TODO
+                            0.15,
+                            true,
+                            false,
+                            false,
+                            false,
+                            500.0,
+                            Compression::None,
+                            346,
+                            260,
+                            true,
+                            false,
+                            1000.0,
+                            true,
+                        ));
+
+                        let mut davis_source = DavisSource::new(
+                            reconstructor,
+                            None,   // TODO
+                            (1000000) as u32, // TODO
+                            1000000.0 / 500.0,
+                            (1000000.0 * ui_state.delta_t_max_mult as f32) as u32, // TODO
+                            true,
+                            ui_state.adder_tresh as u8,
+                            ui_state.adder_tresh as u8,
+                            false,
+                            rt,
+                            DavisTranscoderMode::RawDavis, // TODO
+                            false,
+                        )
+                            .unwrap();
+
+                        Ok(AdderTranscoder {
+                            framed_source: None,
+                            davis_source: Some(davis_source),
+                            live_image: Default::default(),
+                        })
+
+
                     }
                     Some(_) => {Err(Box::new(AdderTranscoderError("Invalid file type".into())))}
                 }

@@ -20,7 +20,9 @@ adder-codec-rs = { path = "/home/andrew/Code/adder-codec-rs", features = ["trans
 bevy = { version = "0.9.0", features = ["bevy_dynamic_plugin"]}
 bevy_egui = "0.17.1"
 bevy_editor_pls = "0.2.0"
+#davis-edi-rs = "0.1.4"
 rayon = "1.5.3"
+tokio = {version = "1.20.1", features = ["full"]}
 opencv = "0.66.0"
 
 # Enable a small amount of optimization in debug mode
