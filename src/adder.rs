@@ -127,7 +127,7 @@ impl AdderTranscoder {
                             reconstructor,
                             None,   // TODO
                             (1000000) as u32, // TODO
-                            1000000.0 / 500.0,
+                            1000000.0 / ui_state.davis_output_fps,
                             (1000000.0 * ui_state.delta_t_max_mult as f32) as u32, // TODO
                             false,
                             ui_state.adder_tresh as u8,
