@@ -1,3 +1,8 @@
+# adder-viz
+[![Documentation](https://docs.rs/adder-viz/badge.svg)](https://docs.rs/adder-viz)
+[![Crates.io](https://img.shields.io/crates/v/adder-viz)](https://crates.io/crates/adder-viz)
+[![Downloads](https://img.shields.io/crates/dr/adder-viz)](https://crates.io/crates/adder-viz)
+
 A GUI project to make it easier to tune the parameters of ADΔER transcoding.
 
 I also just wanted to learn the Bevy and egui libraries, and this is a good excuse.
