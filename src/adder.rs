@@ -8,10 +8,13 @@ use adder_codec_rs::transcoder::source::davis_source::DavisSource;
 use adder_codec_rs::{SourceCamera};
 use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
 use adder_codec_rs::transcoder::source::video::{Source, SourceError};
+use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use adder_codec_rs::davis_edi_rs::util::reconstructor::Reconstructor;
+use adder_codec_rs::aedat::base::ioheader_generated::Compression;
 
 use bevy_egui::EguiContext;
-use crate::{Images, replace_adder_transcoder, UiState, UiStateMemory};
+use crate::{Images, replace_adder_transcoder, ParamsUiState, UiStateMemory, InfoUiState};
 use opencv::core::{Mat};
 
 use opencv::{imgproc, prelude::*, Result};
@@ -22,8 +25,8 @@ use bevy::{
 
 #[derive(Resource, Default)]
 pub struct AdderTranscoder {
-    framed_source: Option<FramedSource>,
-    davis_source: Option<DavisSource>,
+    pub(crate) framed_source: Option<FramedSource>,
+    pub(crate) davis_source: Option<DavisSource>,
     live_image: Image,
 }
 
@@ -39,7 +42,7 @@ impl fmt::Display for AdderTranscoderError {
 impl Error for AdderTranscoderError {}
 
 impl AdderTranscoder {
-    pub(crate) fn new(path_buf: &PathBuf, ui_state: &mut ResMut<UiState>, current_frame: u32) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(path_buf: &PathBuf, ui_state: &mut ResMut<ParamsUiState>, current_frame: u32) -> Result<Self, Box<dyn Error>> {
         match path_buf.extension() {
             None => {
                 Err(Box::new(AdderTranscoderError("Invalid file type".into())))
@@ -78,12 +81,71 @@ impl AdderTranscoder {
 
                     }
                     Some("aedat4") => {
-                        todo!();
-                        // Ok(AdderTranscoder {
-                        //     framed_source: None,
-                        //     davis_source: None,
-                        //     live_image: Default::default(),
-                        // })
+
+                        let events_only = match &ui_state.davis_mode_radio_state {
+                            DavisTranscoderMode::Framed => {false}
+                            DavisTranscoderMode::RawDavis => {false}
+                            DavisTranscoderMode::RawDvs => {true}
+                        };
+                        let deblur_only = match &ui_state.davis_mode_radio_state {
+                            DavisTranscoderMode::Framed => false,
+                            DavisTranscoderMode::RawDavis => true,
+                            DavisTranscoderMode::RawDvs => true,
+                        };
+
+                        let rt = tokio::runtime::Builder::new_multi_thread()
+                            .worker_threads(ui_state.thread_count)
+                            .enable_time()
+                            .build()
+                            .unwrap();
+                        let dir = path_buf.parent().expect("File must be in some directory")
+                            .to_str().expect("Bad path").to_string();
+                        let filename = path_buf.file_name().expect("File must exist")
+                            .to_str().expect("Bad filename").to_string();
+                        eprintln!("{}", filename);
+                        let reconstructor = rt.block_on(Reconstructor::new(
+                            dir + "/",
+                            filename,
+                            "".to_string(),
+                            "file".to_string(), // TODO
+                            0.15,
+                            ui_state.optimize_c,
+                            false,
+                            false,
+                            false,
+                            ui_state.davis_output_fps,
+                            Compression::None,
+                            346,
+                            260,
+                            deblur_only,
+                            events_only,
+                            1000.0, // Target latency (not used)
+                            true,
+                        ));
+
+                        let mut davis_source = DavisSource::new(
+                            reconstructor,
+                            None,   // TODO
+                            (1000000) as u32, // TODO
+                            1000000.0 / ui_state.davis_output_fps,
+                            (1000000.0 * ui_state.delta_t_max_mult as f32) as u32, // TODO
+                            false,
+                            ui_state.adder_tresh as u8,
+                            ui_state.adder_tresh as u8,
+                            false,
+                            rt,
+                            ui_state.davis_mode_radio_state,
+                            false,
+                        )
+                            .unwrap();
+
+                        Ok(AdderTranscoder {
+                            framed_source: None,
+                            davis_source: Some(davis_source),
+                            live_image: Default::default(),
+                        })
+
+
                     }
                     Some(_) => {Err(Box::new(AdderTranscoderError("Invalid file type".into())))}
                 }
@@ -96,8 +158,9 @@ pub(crate) fn update_adder_params(
     _images: ResMut<Assets<Image>>,
     _handles: ResMut<Images>,
     _egui_ctx: ResMut<EguiContext>,
-    mut ui_state: ResMut<UiState>,
+    mut ui_state: ResMut<ParamsUiState>,
     mut ui_state_mem: ResMut<UiStateMemory>,
+    mut ui_info_state: ResMut<InfoUiState>,
     mut commands: Commands,
     mut transcoder: ResMut<AdderTranscoder>) {
     // First, check if the sliders have changed. If they have, don't do anything this frame.
@@ -132,6 +195,16 @@ pub(crate) fn update_adder_params(
                 match &mut transcoder.davis_source {
                     None => { return; }
                     Some(source) => {
+                        if source.mode != ui_state.davis_mode_radio_state
+                            || source.get_reconstructor().output_fps != ui_state.davis_output_fps
+                        {
+                            let source_name = ui_info_state.source_name.clone();
+                            replace_adder_transcoder(&mut commands, &mut ui_state, &mut ui_info_state, &PathBuf::from(source_name.text()), 0);
+                            return;
+                        }
+                        // let tmp = source.get_reconstructor();
+                        let tmp = source.get_reconstructor_mut();
+                        tmp.set_optimize_c(ui_state.optimize_c);
                         source
                     }
                 }
@@ -150,9 +223,9 @@ pub(crate) fn update_adder_params(
                             }
                         }
                 {
-                    let source_name = ui_state.source_name.clone();
+                    let source_name = ui_info_state.source_name.clone();
                     let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
-                    replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), current_frame);
+                    replace_adder_transcoder(&mut commands, &mut ui_state, &mut ui_info_state, &PathBuf::from(source_name.text()), current_frame);
                     return;
                 }
                 source
@@ -173,7 +246,8 @@ pub(crate) fn consume_source(
     mut images: ResMut<Assets<Image>>,
     mut handles: ResMut<Images>,
     _egui_ctx: ResMut<EguiContext>,
-    mut ui_state: ResMut<UiState>,
+    mut ui_state: ResMut<ParamsUiState>,
+    mut ui_info_state: ResMut<InfoUiState>,
     mut commands: Commands,
     mut transcoder: ResMut<AdderTranscoder>) {
 
@@ -189,12 +263,6 @@ pub(crate) fn consume_source(
                 }
             }
             Some(source) => {
-                // if source.scale != ui_state.scale {
-                //     let source_name = ui_state.source_name.clone();
-                //     let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
-                //     replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), current_frame);
-                //     return;
-                // }
                 source
             }
         }
@@ -206,25 +274,25 @@ pub(crate) fn consume_source(
         .build()
         .unwrap();
 
-    ui_state.events_per_sec = 0.;
+    ui_info_state.events_per_sec = 0.;
     match source.consume(1, &pool) {
         Ok(events_vec_vec) => {
             for events_vec in events_vec_vec {
-                ui_state.events_total += events_vec.len() as u64;
-                ui_state.events_per_sec += events_vec.len() as f64;
+                ui_info_state.events_total += events_vec.len() as u64;
+                ui_info_state.events_per_sec += events_vec.len() as f64;
             }
-            ui_state.events_ppc_total = ui_state.events_total as u64 / (source.get_video().width as u64 * source.get_video().height as u64 * source.get_video().channels as u64);
+            ui_info_state.events_ppc_total = ui_info_state.events_total as u64 / (source.get_video().width as u64 * source.get_video().height as u64 * source.get_video().channels as u64);
             let source_fps = source.get_video().get_tps() as f64 / source.get_video().get_ref_time() as f64;
-            ui_state.events_per_sec = ui_state.events_per_sec  as f64 * source_fps;
-            ui_state.events_ppc_per_sec = ui_state.events_per_sec / (source.get_video().width as f64 * source.get_video().height as f64 * source.get_video().channels as f64);
+            ui_info_state.events_per_sec = ui_info_state.events_per_sec  as f64 * source_fps;
+            ui_info_state.events_ppc_per_sec = ui_info_state.events_per_sec / (source.get_video().width as f64 * source.get_video().height as f64 * source.get_video().channels as f64);
         }
         Err(SourceError::Open) => {
 
         }
         Err(_) => {
             // Start video over from the beginning
-            let source_name = ui_state.source_name.clone();
-            replace_adder_transcoder(&mut commands, &mut ui_state, &PathBuf::from(source_name.text()), 0);
+            let source_name = ui_info_state.source_name.clone();
+            replace_adder_transcoder(&mut commands, &mut ui_state, &mut ui_info_state, &PathBuf::from(source_name.text()), 0);
             return;
         }
     };
@@ -234,10 +302,6 @@ pub(crate) fn consume_source(
     // add alpha channel
     let mut image_mat_bgra = Mat::default();
     imgproc::cvt_color(&image_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
-    // let mut image_mat_rgba_32f = Mat::default();
-    // Mat::convert_to(&image_mat_rgba, &mut image_mat_rgba_32f, CV_32FC4, 1.0/255.0, 0.0).unwrap();
-    // highgui::imshow("tmp", &image_mat_rgba_32f).unwrap();
-    // highgui::wait_key(1).unwrap();
 
     let image_bevy = Image::new(
         Extent3d {
@@ -252,24 +316,6 @@ pub(crate) fn consume_source(
     transcoder.live_image = image_bevy;
 
 
-    // images.remove(&handles.image_view);
-
     let handle = images.add(transcoder.live_image.clone());
     handles.image_view = handle;
-
-
-    // let egui_texture_handle = ui_state
-    //     .egui_texture_handle
-    //     .get_or_insert_with(|| {
-    //
-    //         egui_ctx.ctx_mut().load_texture(
-    //             "example-image",
-    //             transcoder.live_image.clone().data,
-    //             TextureFilter::Nearest,
-    //         )
-    //     })
-    //     .clone();
-
-
-    // egui_ctx.add_image(egui_texture_handle)
 }
