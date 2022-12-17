@@ -12,7 +12,47 @@ use bevy::prelude::*;
 use bevy::window::PresentMode;
 
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
+// use egui_dock::egui as dock_egui;
 use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, RichText, Ui};
+
+use egui_dock::{NodeIndex, Tree};
+
+struct MyTabs {
+    tree: Tree<String>
+}
+
+impl MyTabs {
+    pub fn new() -> Self {
+        let tab1 = "tab1".to_string();
+        let tab2 = "tab2".to_string();
+
+        let mut tree = Tree::new(vec![tab1]);
+        tree.split_left(NodeIndex::root(), 0.20, vec![tab2]);
+
+        Self { tree }
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        let style = egui_dock::Style::from_egui(ui.style().as_ref());
+        egui_dock::DockArea::new(&mut self.tree)
+            .style(style)
+            .show_inside(ui, &mut TabViewer {});
+    }
+}
+
+struct TabViewer {}
+
+impl egui_dock::TabViewer for TabViewer {
+    type Tab = String;
+
+    fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
+        ui.label(format!("Content of {tab}"));
+    }
+
+    fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
+        (&*tab).into()
+    }
+}
 
 
 use rayon::current_num_threads;
@@ -143,7 +183,7 @@ impl Default for InfoUiState {
 }
 
 fn configure_visuals(mut egui_ctx: ResMut<EguiContext>) {
-    egui_ctx.ctx_mut().set_visuals(egui::Visuals {
+    egui_ctx.ctx_mut().set_visuals(bevy_egui::egui::Visuals {
         window_rounding: 5.0.into(),
         ..Default::default()
     });
@@ -219,6 +259,8 @@ fn ui_example(
                 }
             });
         });
+
+        // ui.add(MyTabs::new());
     });
 
     let (image, texture_id) = match images.get(&handles.image_view) {
@@ -281,7 +323,20 @@ fn ui_example(
         }
 
 
+        let mut tabs = MyTabs::new();
+        // let mut tab_viewer = tabs.
+        egui_dock::DockArea::new(&mut tabs.tree)
+            // .sh
+            .show_inside(ui, &mut TabViewer {});
     });
+
+
+
+    //  egui_dock::DockArea::new(&mut tabs.tree)
+    //      // .style( Style::from_egui(egui_ctx.style().as_ref()))
+    //      .show(
+    //          // egui_ctx.ctx_mut(), &mut |ui| { });
+    //          dock_ctx, &mut TabViewer {});
 
     // egui::Window::new("Window")
     //     .vscroll(true)

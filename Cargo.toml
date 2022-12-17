@@ -17,8 +17,10 @@ keywords = ["neuromorphic", "visualization", "video", "asynchronous", "event"]
 [dependencies]
 adder-codec-rs = { version = "0.2.2", features = ["transcoder"] }
 #adder-codec-rs = { path = "/home/andrew/Code/adder-codec-rs", features = ["transcoder"] }
-bevy = { version = "0.9.0", features = ["bevy_dynamic_plugin"]}
-bevy_egui = "0.17.1"
+bevy = { version = "0.9.0", features = ["dynamic"] }
+bevy_egui = "0.18.0"
+#egui_dock = "0.2.1"
+egui_dock = { path = "/home/andrew/Code/egui_dock" }
 bevy_editor_pls = "0.2.0"
 #davis-edi-rs = "0.1.4"
 rayon = "1.5.3"
@@ -35,3 +37,7 @@ opt-level = 3
 
 [profile.release]
 lto = true
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=/usr/bin/mold"]
