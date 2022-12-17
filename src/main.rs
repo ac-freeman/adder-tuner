@@ -27,7 +27,7 @@ impl MyTabs {
         let tab2 = "tab2".to_string();
 
         let mut tree = Tree::new(vec![tab1]);
-        tree.split_left(NodeIndex::root(), 0.20, vec![tab2]);
+        tree.split_left(NodeIndex::root(), 1.0, vec![tab2]);
 
         Self { tree }
     }
@@ -253,11 +253,14 @@ fn ui_example(
     egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
         // The top panel is often a good place for a menu bar:
         egui::menu::bar(ui, |ui| {
-            egui::menu::menu_button(ui, "File", |ui| {
-                if ui.button("Quit").clicked() {
-                    std::process::exit(0);
-                }
-            });
+            if ui.add_enabled(false, egui::Button::new("Transcode")).clicked() {
+                // std::process::exit(0);
+                println!("click 0");
+            }
+            if ui.add_enabled(true, egui::Button::new("Play file")).clicked() {
+                // std::process::exit(0);
+                println!("click 1");
+            }
         });
 
         // ui.add(MyTabs::new());
@@ -323,11 +326,11 @@ fn ui_example(
         }
 
 
-        let mut tabs = MyTabs::new();
-        // let mut tab_viewer = tabs.
-        egui_dock::DockArea::new(&mut tabs.tree)
-            // .sh
-            .show_inside(ui, &mut TabViewer {});
+        // let mut tabs = MyTabs::new();
+        // // let mut tab_viewer = tabs.
+        // egui_dock::DockArea::new(&mut tabs.tree)
+        //     // .sh
+        //     .show_inside(ui, &mut TabViewer {});
     });
 
 
