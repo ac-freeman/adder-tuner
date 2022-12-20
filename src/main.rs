@@ -42,7 +42,7 @@ pub struct MainUiState {
 
 use rayon::current_num_threads;
 use crate::transcoder::adder;
-use crate::transcoder::adder::{AdderTranscoder, consume_source, replace_adder_transcoder, update_adder_params};
+use crate::transcoder::adder::{AdderTranscoder, consume_source, replace_adder_transcoder};
 
 /// This example demonstrates the following functionality and use-cases of bevy_egui:
 /// - rendering loaded assets;
@@ -258,30 +258,12 @@ fn draw_ui(
         }
 
 
-        // let mut tabs = MyTabs::new();
-        // // let mut tab_viewer = tabs.
-        // egui_dock::DockArea::new(&mut tabs.tree)
-        //     // .sh
-        //     .show_inside(ui, &mut TabViewer {});
     });
+}
 
-
-
-    //  egui_dock::DockArea::new(&mut tabs.tree)
-    //      // .style( Style::from_egui(egui_ctx.style().as_ref()))
-    //      .show(
-    //          // egui_ctx.ctx_mut(), &mut |ui| { });
-    //          dock_ctx, &mut TabViewer {});
-
-    // egui::Window::new("Window")
-    //     .vscroll(true)
-    //     .open(&mut ui_state.is_window_open)
-    //     .show(egui_ctx.ctx_mut(), |ui| {
-    //         ui.label("Windows can be moved by dragging them.");
-    //         ui.label("They are automatically sized based on contents.");
-    //         ui.label("You can turn on resizing and scrolling if you like.");
-    //         ui.label("You would normally chose either panels OR windows.");
-    //     });
+fn update_adder_params(mut transcoder_state: ResMut<TranscoderState>,
+                       mut commands: Commands) {
+    transcoder_state.update_adder_params(commands);
 }
 
 #[derive(Component, Default)]

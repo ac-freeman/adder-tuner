@@ -116,7 +116,6 @@ impl TranscoderState {
     }
 
     pub fn update_adder_params(&mut self, mut commands: Commands) {
-        {
 
             let ui_state = &mut self.ui_state;
             let ui_state_mem = &mut self.ui_state_mem;
@@ -142,7 +141,6 @@ impl TranscoderState {
             ui_state.delta_t_max_mult = ui_state.delta_t_max_mult_slider;
             ui_state.adder_tresh = ui_state.adder_tresh_slider;
             ui_state.scale = ui_state.scale_slider;
-        }
 
 
         let source: &mut dyn Source = {
@@ -195,8 +193,6 @@ impl TranscoderState {
         video.update_adder_thresh_neg(self.ui_state.adder_tresh as u8);
         video.update_delta_t_max(self.ui_state.delta_t_max_mult as u32 * video.get_ref_time());
         video.instantaneous_view_mode = self.ui_state.view_mode_radio_state;
-
-
     }
 
     pub fn consume_source(
