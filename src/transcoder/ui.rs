@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
 use adder_codec_rs::transcoder::source::video::{InstantaneousViewMode, Source, SourceError};
 use bevy::ecs::system::Resource;
-use bevy::prelude::{Assets, Commands, Image, Res, ResMut};
+use bevy::prelude::{Assets, Commands, Image, Res, ResMut, Time};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy_egui::egui;
 use bevy_egui::egui::{RichText, Ui};
@@ -113,6 +113,28 @@ impl TranscoderState {
             .show(ui, |ui| {
                 side_panel_grid_contents(&self.transcoder, ui, &mut self.ui_state);
             });
+    }
+
+    pub fn central_panel_ui(
+        &mut self,
+        mut ui: &mut Ui,
+        time: Res<Time>
+    ) {
+        ui.label(self.ui_info_state.source_name.clone());
+
+        ui.label(format!(
+            "{:.2} transcoded FPS\t\
+            {:.2} events per source sec\t\
+            {:.2} events PPC per source sec\t\
+            {:.0} events total\t\
+            {:.0} events PPC total
+            ",
+                1. / time.delta_seconds(),
+            self.ui_info_state.events_per_sec,
+            self.ui_info_state.events_ppc_per_sec,
+            self.ui_info_state.events_total,
+            self.ui_info_state.events_ppc_total
+        ));
     }
 
     pub fn update_adder_params(&mut self, mut commands: Commands) {

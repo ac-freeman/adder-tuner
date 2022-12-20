@@ -212,23 +212,17 @@ fn draw_ui(
         ui.heading("Drag and drop your source file here.");
 
 
+        match main_ui_state.view {
+            Tabs::Transcoder => {
+                transcoder_state.central_panel_ui(ui, time);
+            }
+            Tabs::Player => {
+                todo!();
+            }
+        }
 
         // TODO: restore
-        // ui.label(ui_info_state.source_name.clone());
 
-        // ui.label(format!(
-        //     "{:.2} transcoded FPS\t\
-        //     {:.2} events per source sec\t\
-        //     {:.2} events PPC per source sec\t\
-        //     {:.0} events total\t\
-        //     {:.0} events PPC total
-        //     ",
-        //         1. / time.delta_seconds(),
-        //     ui_info_state.events_per_sec,
-        //     ui_info_state.events_ppc_per_sec,
-        //     ui_info_state.events_total,
-        //     ui_info_state.events_ppc_total
-        // ));
 
 
 
