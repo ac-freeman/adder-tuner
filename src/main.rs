@@ -125,18 +125,11 @@ fn configure_menu_bar(
     mut main_ui_state: ResMut<MainUiState>,
     mut egui_ctx: ResMut<EguiContext>,
 ) {
-    let mut ctx = egui::Context::default();
-    let mut style = (*ctx.style()).clone();
-    let mut tmp = (*(*egui_ctx).ctx_mut().clone().style()).clone();
-    // let mut style = (*ctx.style()).clone();
-    // let mut style = (egui_ctx.ctx_mut().style()).clone();
-    tmp.visuals.window_rounding = Rounding::from(50.0);
-
+    let mut style = (*(*egui_ctx).ctx_mut().clone().style()).clone();
 
     egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
         // The top panel is often a good place for a menu bar:
         egui::menu::bar(ui, |ui| {
-
             ui.style_mut().visuals.widgets.active.rounding = Rounding::same(0.0);
             ui.style_mut().visuals.widgets.inactive.rounding = Rounding::same(0.0);
             ui.style_mut().visuals.widgets.open.rounding = Rounding::same(0.0);
@@ -147,18 +140,15 @@ fn configure_menu_bar(
             ui.style_mut().visuals.widgets.hovered.expansion = 3.0;
             let default_inactive_stroke = ui.style_mut().visuals.widgets.inactive.fg_stroke;
 
-            // ui.style_mut().visuals.dark_mode = false;
-
-
             let mut new_selection = main_ui_state.view;
             for menu_item in Tabs::iter() {
                 let button = {
                     if main_ui_state.view == menu_item {
                         ui.style_mut().visuals.widgets.inactive.fg_stroke = ui.style_mut().visuals.widgets.active.fg_stroke;
-                        egui::Button::new(menu_item.as_str()).fill(tmp.visuals.window_fill)
+                        egui::Button::new(menu_item.as_str()).fill(style.visuals.window_fill)
                     } else {
                         ui.style_mut().visuals.widgets.inactive.fg_stroke = default_inactive_stroke;
-                        egui::Button::new(menu_item.as_str()).fill(tmp.visuals.faint_bg_color)
+                        egui::Button::new(menu_item.as_str()).fill(style.visuals.faint_bg_color)
                     }
                 };
                 let res = button.ui(ui);
@@ -166,32 +156,12 @@ fn configure_menu_bar(
                     new_selection = menu_item;
                 }
             }
+
+            // Now that all the menu items have been drawn, set the selected item for when the next
+            // frame is drawn
             main_ui_state.view = new_selection;
-
-
-
-            // let mut button = egui::Button::new("Transcode").fill(Color32::from_gray(27));
-
-
-
         });
     });
-}
-
-fn menu_item(ui: &mut Ui, active: bool, text: impl Into<WidgetText>, default_inactive_stroke: Stroke) {
-
-    match active {
-        true => {
-            ui.style_mut().visuals.widgets.inactive.fg_stroke = ui.style_mut().visuals.widgets.active.fg_stroke;
-            let mut button = egui::Button::new(text).fill(ui.style_mut().visuals.window_fill);
-            let res = button.ui(ui);
-        }
-        false => {
-            ui.style_mut().visuals.widgets.inactive.fg_stroke = default_inactive_stroke;
-            let mut button = egui::Button::new("Play file").fill(ui.style_mut().visuals.faint_bg_color);
-            let res = button.ui(ui);
-        }
-    }
 }
 
 fn ui_example(
