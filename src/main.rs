@@ -2,7 +2,7 @@ mod adder;
 
 
 
-use std::ops::RangeInclusive;
+use std::ops::{Deref, RangeInclusive};
 use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::video::InstantaneousViewMode;
@@ -13,46 +13,46 @@ use bevy::window::PresentMode;
 
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 // use egui_dock::egui as dock_egui;
-use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, RichText, Ui};
+use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, Response, RichText, Rounding, Ui, Widget};
 
-use egui_dock::{NodeIndex, Tree};
+// use egui_dock::{NodeIndex, Tree};
 
-struct MyTabs {
-    tree: Tree<String>
-}
-
-impl MyTabs {
-    pub fn new() -> Self {
-        let tab1 = "tab1".to_string();
-        let tab2 = "tab2".to_string();
-
-        let mut tree = Tree::new(vec![tab1]);
-        tree.split_left(NodeIndex::root(), 1.0, vec![tab2]);
-
-        Self { tree }
-    }
-
-    fn ui(&mut self, ui: &mut egui::Ui) {
-        let style = egui_dock::Style::from_egui(ui.style().as_ref());
-        egui_dock::DockArea::new(&mut self.tree)
-            .style(style)
-            .show_inside(ui, &mut TabViewer {});
-    }
-}
-
-struct TabViewer {}
-
-impl egui_dock::TabViewer for TabViewer {
-    type Tab = String;
-
-    fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
-        ui.label(format!("Content of {tab}"));
-    }
-
-    fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
-        (&*tab).into()
-    }
-}
+// struct MyTabs {
+//     tree: Tree<String>
+// }
+//
+// impl MyTabs {
+//     pub fn new() -> Self {
+//         let tab1 = "tab1".to_string();
+//         let tab2 = "tab2".to_string();
+//
+//         let mut tree = Tree::new(vec![tab1]);
+//         tree.split_left(NodeIndex::root(), 1.0, vec![tab2]);
+//
+//         Self { tree }
+//     }
+//
+//     fn ui(&mut self, ui: &mut egui::Ui) {
+//         let style = egui_dock::Style::from_egui(ui.style().as_ref());
+//         egui_dock::DockArea::new(&mut self.tree)
+//             .style(style)
+//             .show_inside(ui, &mut TabViewer {});
+//     }
+// }
+//
+// struct TabViewer {}
+//
+// impl egui_dock::TabViewer for TabViewer {
+//     type Tab = String;
+//
+//     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
+//         ui.label(format!("Content of {tab}"));
+//     }
+//
+//     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
+//         (&*tab).into()
+//     }
+// }
 
 
 use rayon::current_num_threads;
@@ -250,17 +250,51 @@ fn ui_example(
 
         });
 
+    let mut ctx = egui::Context::default();
+    let mut style = (*ctx.style()).clone();
+    let mut tmp = (*(*egui_ctx).ctx_mut().clone().style()).clone();
+    // let mut style = (*ctx.style()).clone();
+    // let mut style = (egui_ctx.ctx_mut().style()).clone();
+    tmp.visuals.window_rounding = Rounding::from(50.0);
+
+
     egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
         // The top panel is often a good place for a menu bar:
         egui::menu::bar(ui, |ui| {
-            if ui.add_enabled(false, egui::Button::new("Transcode")).clicked() {
-                // std::process::exit(0);
-                println!("click 0");
-            }
-            if ui.add_enabled(true, egui::Button::new("Play file")).clicked() {
-                // std::process::exit(0);
-                println!("click 1");
-            }
+            ui.style_mut().visuals.widgets.active.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.inactive.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.open.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.hovered.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.noninteractive.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.inactive.expansion = 3.0;
+            ui.style_mut().visuals.widgets.active.expansion = 3.0;
+            ui.style_mut().visuals.widgets.hovered.expansion = 3.0;
+            let default_inactive_stroke = ui.style_mut().visuals.widgets.inactive.fg_stroke;
+
+            // ui.style_mut().visuals.dark_mode = false;
+
+
+
+            // let mut button = egui::Button::new("Transcode").fill(Color32::from_gray(27));
+            ui.style_mut().visuals.widgets.inactive.fg_stroke = ui.style_mut().visuals.widgets.active.fg_stroke;
+            let mut button = egui::Button::new("Transcode").fill(tmp.visuals.window_fill);
+            let res = button.ui(ui);
+
+            ui.style_mut().visuals.widgets.inactive.fg_stroke = default_inactive_stroke;
+            let mut button = egui::Button::new("Play file").fill(tmp.visuals.faint_bg_color);
+            let res = button.ui(ui);
+            // if ui.add_sized([120., 40.], egui::Button::new("Transcode").fill(Color32::GOLD)).clicked() {
+            //     // std::process::exit(0);
+            //     println!("click 0");
+            // }
+            // if ui.add_enabled(false, egui::Button::new("Transcode").fill(Color32::GOLD)).clicked() {
+            //     // std::process::exit(0);
+            //     println!("click 0");
+            // }
+            // if ui.add_enabled(true, egui::Button::new("Play file")).clicked() {
+            //     // std::process::exit(0);
+            //     println!("click 1");
+            // }
         });
 
         // ui.add(MyTabs::new());
