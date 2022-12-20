@@ -1,4 +1,5 @@
 mod transcoder;
+mod player;
 
 
 use std::ops::{Deref, RangeInclusive};
@@ -9,6 +10,7 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
+use crate::player::ui::PlayerState;
 use crate::transcoder::ui::{ParamsUiState, InfoUiState, UiStateMemory, TranscoderState};
 
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
@@ -55,6 +57,7 @@ fn main() {
         .insert_resource(Images::default())
         .insert_resource(MainUiState { view: Tabs::Transcoder })
         .init_resource::<TranscoderState>()
+        .init_resource::<PlayerState>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
                 title: "ADΔER Tuner".to_string(),
@@ -165,6 +168,7 @@ fn draw_ui(
     // mut ui_state: ResMut<ParamsUiState>,
     // mut ui_info_state: ResMut<InfoUiState>,
     mut transcoder_state: ResMut<TranscoderState>,
+    mut player_state: ResMut<PlayerState>,
     main_ui_state: Res<MainUiState>,
 ) {
     egui::SidePanel::left("side_panel")
@@ -188,7 +192,7 @@ fn draw_ui(
                     transcoder_state.side_panel_ui(ui);
                 }
                 Tabs::Player => {
-                    todo!();
+                    player_state.side_panel_ui(ui);
                 }
             }
 
@@ -217,15 +221,9 @@ fn draw_ui(
                 transcoder_state.central_panel_ui(ui, time);
             }
             Tabs::Player => {
-                todo!();
+                player_state.central_panel_ui(ui, time);
             }
         }
-
-        // TODO: restore
-
-
-
-
 
         match (image, texture_id) {
             (Some(image), Some(texture_id)) => {
