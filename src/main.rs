@@ -1,5 +1,4 @@
-mod adder;
-
+mod transcoder;
 
 
 use std::ops::{Deref, RangeInclusive};
@@ -10,6 +9,7 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
+use crate::transcoder::ui::{ParamsUiState, InfoUiState, UiStateMemory};
 
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 // use egui_dock::egui as dock_egui;
@@ -17,46 +17,13 @@ use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, Response, R
 
 // use egui_dock::{NodeIndex, Tree};
 
-// struct MyTabs {
-//     tree: Tree<String>
-// }
-//
-// impl MyTabs {
-//     pub fn new() -> Self {
-//         let tab1 = "tab1".to_string();
-//         let tab2 = "tab2".to_string();
-//
-//         let mut tree = Tree::new(vec![tab1]);
-//         tree.split_left(NodeIndex::root(), 1.0, vec![tab2]);
-//
-//         Self { tree }
-//     }
-//
-//     fn ui(&mut self, ui: &mut egui::Ui) {
-//         let style = egui_dock::Style::from_egui(ui.style().as_ref());
-//         egui_dock::DockArea::new(&mut self.tree)
-//             .style(style)
-//             .show_inside(ui, &mut TabViewer {});
-//     }
-// }
-//
-// struct TabViewer {}
-//
-// impl egui_dock::TabViewer for TabViewer {
-//     type Tab = String;
-//
-//     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
-//         ui.label(format!("Content of {tab}"));
-//     }
-//
-//     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
-//         (&*tab).into()
-//     }
-// }
-
+enum Tabs {
+    Transcoder,
+    Player,
+}
 
 use rayon::current_num_threads;
-use crate::adder::{AdderTranscoder, consume_source, update_adder_params};
+use crate::transcoder::adder::{AdderTranscoder, consume_source, update_adder_params};
 
 /// This example demonstrates the following functionality and use-cases of bevy_egui:
 /// - rendering loaded assets;
@@ -100,87 +67,8 @@ struct Images {
     image_view: Handle<Image>,
 }
 
-#[derive(Resource)]
-struct UiStateMemory {
-    delta_t_ref_slider: f32,
-    delta_t_max_mult_slider: u32,
-    adder_tresh_slider: f32,
-    scale_slider: f64,
-}
-impl Default for UiStateMemory {
-    fn default() -> Self {
-        UiStateMemory {
-            delta_t_ref_slider: 255.0,
-            delta_t_max_mult_slider: 120,
-            adder_tresh_slider: 10.0,
-            scale_slider: 0.5
-        }
-    }
-}
 
-#[derive(Resource)]
-struct ParamsUiState {
-    delta_t_ref: f32,
-    delta_t_ref_max: f32,
-    delta_t_max_mult: u32,
-    adder_tresh: f32,
-    delta_t_ref_slider: f32,
-    delta_t_max_mult_slider: u32,
-    adder_tresh_slider: f32,
-    scale: f64,
-    scale_slider: f64,
-    thread_count: usize,
-    color: bool,
-    view_mode_radio_state: InstantaneousViewMode,
-    davis_mode_radio_state: DavisTranscoderMode,
-    davis_output_fps: f64,
-    optimize_c: bool,
-}
 
-impl Default for ParamsUiState {
-    fn default() -> Self {
-        ParamsUiState {
-            delta_t_ref: 255.0,
-            delta_t_ref_max: 255.0,
-            delta_t_max_mult: 120,
-            adder_tresh: 10.0,
-            delta_t_ref_slider: 255.0,
-            delta_t_max_mult_slider: 120,
-            adder_tresh_slider: 10.0,
-            scale: 0.5,
-            scale_slider: 0.5,
-            thread_count: 4,
-            color: true,
-            view_mode_radio_state: InstantaneousViewMode::Intensity,
-            davis_mode_radio_state: DavisTranscoderMode::RawDavis,
-            davis_output_fps: 500.0,
-            optimize_c: true,
-        }
-    }
-}
-
-#[derive(Resource)]
-struct InfoUiState {
-    events_per_sec: f64,
-    events_ppc_per_sec: f64,
-    events_ppc_total: u64,
-    events_total: u64,
-    source_name: RichText,
-    view_mode_radio_state: InstantaneousViewMode,
-}
-
-impl Default for InfoUiState {
-    fn default() -> Self {
-        InfoUiState {
-            events_per_sec: 0.,
-            events_ppc_per_sec: 0.,
-            events_ppc_total: 0,
-            events_total: 0,
-            source_name: RichText::new("No file selected yet"),
-            view_mode_radio_state: InstantaneousViewMode::Intensity,
-        }
-    }
-}
 
 fn configure_visuals(mut egui_ctx: ResMut<EguiContext>) {
     egui_ctx.ctx_mut().set_visuals(bevy_egui::egui::Visuals {

@@ -14,13 +14,14 @@ use adder_codec_rs::davis_edi_rs::util::reconstructor::Reconstructor;
 use adder_codec_rs::aedat::base::ioheader_generated::Compression;
 
 use bevy_egui::EguiContext;
-use crate::{Images, replace_adder_transcoder, ParamsUiState, UiStateMemory, InfoUiState};
+use crate::{Images, replace_adder_transcoder,};
 use opencv::core::{Mat};
 
 use opencv::{imgproc, prelude::*, Result};
 use bevy::{
     prelude::*,
 };
+use crate::transcoder::ui::{InfoUiState, ParamsUiState, UiStateMemory};
 
 
 #[derive(Resource, Default)]
