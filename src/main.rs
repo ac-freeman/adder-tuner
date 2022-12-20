@@ -125,6 +125,8 @@ fn configure_menu_bar(
 
     egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
         egui::menu::bar(ui, |ui| {
+            global_dark_light_mode_switch(ui);
+
             ui.style_mut().visuals.widgets.active.rounding = Rounding::same(0.0);
             ui.style_mut().visuals.widgets.inactive.rounding = Rounding::same(0.0);
             ui.style_mut().visuals.widgets.open.rounding = Rounding::same(0.0);
@@ -176,7 +178,6 @@ fn draw_ui(
         .show(egui_ctx.ctx_mut(), |ui| {
             ui.horizontal(|ui|{
                 ui.heading("ADΔER Parameters");
-                global_dark_light_mode_switch(ui);
                 if ui.add(egui::Button::new("Reset params")).clicked() {
                     transcoder_state.ui_state = Default::default();
                 }
