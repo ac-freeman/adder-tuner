@@ -27,6 +27,8 @@ bevy_editor_pls = "0.2.0"
 rayon = "1.5.3"
 tokio = {version = "1.20.1", features = ["full"]}
 opencv = "0.66.0"
+strum = "0.24.1"
+strum_macros = "0.24.3"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]

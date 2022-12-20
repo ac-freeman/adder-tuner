@@ -13,13 +13,31 @@ use crate::transcoder::ui::{ParamsUiState, InfoUiState, UiStateMemory};
 
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 // use egui_dock::egui as dock_egui;
-use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, Response, RichText, Rounding, Ui, Widget};
+use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, Response, RichText, Rounding, Stroke, Ui, Widget, WidgetText};
+
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 // use egui_dock::{NodeIndex, Tree};
 
+#[derive(Debug, EnumIter, PartialEq, Clone, Copy)]
 enum Tabs {
     Transcoder,
     Player,
+}
+
+impl Tabs {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Tabs::Transcoder => {"Transcode"}
+            Tabs::Player => {"Play file"}
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct MainUiState {
+    view: Tabs,
 }
 
 use rayon::current_num_threads;
@@ -35,6 +53,7 @@ fn main() {
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(AdderTranscoder::default())
         .insert_resource(Images::default())
+        .insert_resource(MainUiState { view: Tabs::Transcoder })
         .init_resource::<ParamsUiState>()
         .init_resource::<InfoUiState>()
         .init_resource::<UiStateMemory>()
@@ -54,6 +73,7 @@ fn main() {
         // .add_plugin(EditorPlugin)
         .add_startup_system(configure_visuals)
         .add_startup_system(configure_ui_state)
+        .add_system(configure_menu_bar)
         .add_system(update_ui_scale_factor)
         .add_system(ui_example)
         .add_system(file_drop)
@@ -101,6 +121,79 @@ fn update_ui_scale_factor(
     }
 }
 
+fn configure_menu_bar(
+    mut main_ui_state: ResMut<MainUiState>,
+    mut egui_ctx: ResMut<EguiContext>,
+) {
+    let mut ctx = egui::Context::default();
+    let mut style = (*ctx.style()).clone();
+    let mut tmp = (*(*egui_ctx).ctx_mut().clone().style()).clone();
+    // let mut style = (*ctx.style()).clone();
+    // let mut style = (egui_ctx.ctx_mut().style()).clone();
+    tmp.visuals.window_rounding = Rounding::from(50.0);
+
+
+    egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
+        // The top panel is often a good place for a menu bar:
+        egui::menu::bar(ui, |ui| {
+
+            ui.style_mut().visuals.widgets.active.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.inactive.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.open.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.hovered.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.noninteractive.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.inactive.expansion = 3.0;
+            ui.style_mut().visuals.widgets.active.expansion = 3.0;
+            ui.style_mut().visuals.widgets.hovered.expansion = 3.0;
+            let default_inactive_stroke = ui.style_mut().visuals.widgets.inactive.fg_stroke;
+
+            // ui.style_mut().visuals.dark_mode = false;
+
+
+            let mut new_selection = main_ui_state.view;
+            for menu_item in Tabs::iter() {
+                let button = {
+                    if main_ui_state.view == menu_item {
+                        ui.style_mut().visuals.widgets.inactive.fg_stroke = ui.style_mut().visuals.widgets.active.fg_stroke;
+                        egui::Button::new(menu_item.as_str()).fill(tmp.visuals.window_fill)
+                    } else {
+                        ui.style_mut().visuals.widgets.inactive.fg_stroke = default_inactive_stroke;
+                        egui::Button::new(menu_item.as_str()).fill(tmp.visuals.faint_bg_color)
+                    }
+                };
+                let res = button.ui(ui);
+                if res.clicked() {
+                    new_selection = menu_item;
+                }
+            }
+            main_ui_state.view = new_selection;
+
+
+
+            // let mut button = egui::Button::new("Transcode").fill(Color32::from_gray(27));
+
+
+
+        });
+    });
+}
+
+fn menu_item(ui: &mut Ui, active: bool, text: impl Into<WidgetText>, default_inactive_stroke: Stroke) {
+
+    match active {
+        true => {
+            ui.style_mut().visuals.widgets.inactive.fg_stroke = ui.style_mut().visuals.widgets.active.fg_stroke;
+            let mut button = egui::Button::new(text).fill(ui.style_mut().visuals.window_fill);
+            let res = button.ui(ui);
+        }
+        false => {
+            ui.style_mut().visuals.widgets.inactive.fg_stroke = default_inactive_stroke;
+            let mut button = egui::Button::new("Play file").fill(ui.style_mut().visuals.faint_bg_color);
+            let res = button.ui(ui);
+        }
+    }
+}
+
 fn ui_example(
     mut commands: Commands,
     time: Res<Time>, // Time passed since last frame
@@ -138,55 +231,7 @@ fn ui_example(
 
         });
 
-    let mut ctx = egui::Context::default();
-    let mut style = (*ctx.style()).clone();
-    let mut tmp = (*(*egui_ctx).ctx_mut().clone().style()).clone();
-    // let mut style = (*ctx.style()).clone();
-    // let mut style = (egui_ctx.ctx_mut().style()).clone();
-    tmp.visuals.window_rounding = Rounding::from(50.0);
 
-
-    egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
-        // The top panel is often a good place for a menu bar:
-        egui::menu::bar(ui, |ui| {
-            ui.style_mut().visuals.widgets.active.rounding = Rounding::same(0.0);
-            ui.style_mut().visuals.widgets.inactive.rounding = Rounding::same(0.0);
-            ui.style_mut().visuals.widgets.open.rounding = Rounding::same(0.0);
-            ui.style_mut().visuals.widgets.hovered.rounding = Rounding::same(0.0);
-            ui.style_mut().visuals.widgets.noninteractive.rounding = Rounding::same(0.0);
-            ui.style_mut().visuals.widgets.inactive.expansion = 3.0;
-            ui.style_mut().visuals.widgets.active.expansion = 3.0;
-            ui.style_mut().visuals.widgets.hovered.expansion = 3.0;
-            let default_inactive_stroke = ui.style_mut().visuals.widgets.inactive.fg_stroke;
-
-            // ui.style_mut().visuals.dark_mode = false;
-
-
-
-            // let mut button = egui::Button::new("Transcode").fill(Color32::from_gray(27));
-            ui.style_mut().visuals.widgets.inactive.fg_stroke = ui.style_mut().visuals.widgets.active.fg_stroke;
-            let mut button = egui::Button::new("Transcode").fill(tmp.visuals.window_fill);
-            let res = button.ui(ui);
-
-            ui.style_mut().visuals.widgets.inactive.fg_stroke = default_inactive_stroke;
-            let mut button = egui::Button::new("Play file").fill(tmp.visuals.faint_bg_color);
-            let res = button.ui(ui);
-            // if ui.add_sized([120., 40.], egui::Button::new("Transcode").fill(Color32::GOLD)).clicked() {
-            //     // std::process::exit(0);
-            //     println!("click 0");
-            // }
-            // if ui.add_enabled(false, egui::Button::new("Transcode").fill(Color32::GOLD)).clicked() {
-            //     // std::process::exit(0);
-            //     println!("click 0");
-            // }
-            // if ui.add_enabled(true, egui::Button::new("Play file")).clicked() {
-            //     // std::process::exit(0);
-            //     println!("click 1");
-            // }
-        });
-
-        // ui.add(MyTabs::new());
-    });
 
     let (image, texture_id) = match images.get(&handles.image_view) {
         // texture_id = Some(egui_ctx.add_image(handles.image_view.clone()));
