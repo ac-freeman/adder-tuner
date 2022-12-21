@@ -1,8 +1,10 @@
-use bevy::prelude::Res;
+use bevy::asset::Assets;
+use bevy::prelude::{Commands, Image, Res, ResMut};
 use bevy::time::Time;
-use bevy_egui::egui::Ui;
+use bevy_egui::egui::{Ui};
 use bevy::ecs::system::Resource;
 use bevy_egui::egui;
+use crate::Images;
 
 #[derive(Default)]
 pub struct PlayerUiState {
@@ -47,6 +49,15 @@ impl PlayerState {
         });
 
 
+
+    }
+
+    pub fn consume_source(
+        &mut self,
+        mut images: ResMut<Assets<Image>>,
+        mut handles: ResMut<Images>,
+        mut commands: Commands,
+    ) {
 
     }
 

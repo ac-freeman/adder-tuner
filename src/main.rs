@@ -44,7 +44,7 @@ pub struct MainUiState {
 
 use rayon::current_num_threads;
 use crate::transcoder::adder;
-use crate::transcoder::adder::{AdderTranscoder, consume_source, replace_adder_transcoder};
+use crate::transcoder::adder::{AdderTranscoder, replace_adder_transcoder};
 
 /// This example demonstrates the following functionality and use-cases of bevy_egui:
 /// - rendering loaded assets;
@@ -120,6 +120,7 @@ fn update_ui_scale_factor(
 fn configure_menu_bar(
     mut main_ui_state: ResMut<MainUiState>,
     mut egui_ctx: ResMut<EguiContext>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     let mut style = (*(*egui_ctx).ctx_mut().clone().style()).clone();
 
@@ -156,7 +157,11 @@ fn configure_menu_bar(
 
             // Now that all the menu items have been drawn, set the selected item for when the next
             // frame is drawn
-            main_ui_state.view = new_selection;
+            if main_ui_state.view != new_selection {
+                // Clear the image vec
+                images.clear();
+                main_ui_state.view = new_selection;
+            }
         });
     });
 }
@@ -223,6 +228,11 @@ fn draw_ui(
             }
         }
 
+
+        /*
+        Images in the central panel are common to both visualization tabs, so we can do this
+         here as the last step of drawing its UI
+        */
         match (image, texture_id) {
             (Some(image), Some(texture_id)) => {
                 let avail_size = ui.available_size();
@@ -254,6 +264,24 @@ fn draw_ui(
 fn update_adder_params(mut transcoder_state: ResMut<TranscoderState>,
                        mut commands: Commands) {
     transcoder_state.update_adder_params(commands);
+}
+
+fn consume_source(
+    mut images: ResMut<Assets<Image>>,
+    mut handles: ResMut<Images>,
+    mut commands: Commands,
+    main_ui_state: Res<MainUiState>,
+    mut transcoder_state: ResMut<TranscoderState>,
+    mut player_state: ResMut<PlayerState>,
+) {
+    match main_ui_state.view {
+        Tabs::Transcoder => {
+            transcoder_state.consume_source(images, handles, commands);
+        }
+        Tabs::Player => {
+            player_state.consume_source(images, handles, commands);
+        }
+    }
 }
 
 #[derive(Component, Default)]
@@ -295,7 +323,7 @@ fn file_drop(
 
 
 
-
+/// A slider with +/- buttons
 fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, ui: &mut Ui, value: &mut Num, range: RangeInclusive<Num>, interval: Num) {
     ui.add_enabled_ui(enabled, |ui| {
         ui.horizontal(|ui| {

@@ -166,19 +166,15 @@ pub(crate) fn update_adder_params(
 
 }
 
-pub(crate) fn consume_source(
-    mut images: ResMut<Assets<Image>>,
-    mut handles: ResMut<Images>,
-    _egui_ctx: ResMut<EguiContext>,
-    mut transcoder_state: ResMut<TranscoderState>,
-    mut commands: Commands,
-) {
-    transcoder_state.consume_source(images, handles, commands);
-
-
-
-
-}
+// pub(crate) fn consume_source(
+//     mut images: ResMut<Assets<Image>>,
+//     mut handles: ResMut<Images>,
+//     _egui_ctx: ResMut<EguiContext>,
+//     mut transcoder_state: ResMut<TranscoderState>,
+//     mut commands: Commands,
+// ) {
+//     transcoder_state.consume_source(images, handles, commands);
+// }
 
 pub(crate) fn replace_adder_transcoder(commands: &mut Commands,
                                        transcoder_state: &mut TranscoderState,
