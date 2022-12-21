@@ -290,6 +290,8 @@ struct MyDropTarget;
 
 ///https://bevy-cheatbook.github.io/input/dnd.html
 fn file_drop(
+    mut main_ui_state: ResMut<MainUiState>,
+    mut player_state: ResMut<PlayerState>,
     mut transcoder_state: ResMut<TranscoderState>,
     mut commands: Commands,
     mut dnd_evr: EventReader<FileDragAndDrop>,
@@ -312,10 +314,20 @@ fn file_drop(
                 }
             }
 
-            replace_adder_transcoder(
-                &mut commands,
-                &mut transcoder_state,
-                path_buf, 0);
+
+            match main_ui_state.view {
+                Tabs::Transcoder => {
+                    // TODO: refactor as struct func
+                    replace_adder_transcoder(
+                        &mut commands,
+                        &mut transcoder_state,
+                        path_buf, 0);
+                }
+                Tabs::Player => {
+                    player_state.replace_player(path_buf);
+                }
+            }
+
         }
     }
 }

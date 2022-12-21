@@ -5,9 +5,11 @@ use bevy_egui::egui::{Ui};
 use bevy::ecs::system::Resource;
 use bevy_egui::egui;
 use crate::Images;
+use crate::player::adder::AdderPlayer;
 
 #[derive(Default)]
 pub struct PlayerUiState {
+    pub(crate) player: AdderPlayer,
     pub(crate) playback_speed: f32,
     pub(crate) playing: bool,
     pub(crate) current_frame: u32,
@@ -68,5 +70,11 @@ impl PlayerState {
     ) {
 
         ui.heading("Drag and drop your ADΔER file here (.adder)");
+    }
+
+    pub fn replace_player(&mut self, path_buf: &std::path::PathBuf) {
+        self.ui_state.player = AdderPlayer::new(path_buf).unwrap();
+        self.ui_state.current_frame = 0;
+
     }
 }
