@@ -137,7 +137,7 @@ impl PlayerState {
                         SourceCamera::Asint => {
                             todo!("Not yet implemented")
                         }
-                    };
+                    } * 255.0;
                     unsafe {
                         let px: &mut u8 = display_mat.at_3d_unchecked_mut(y, x, c).unwrap();
                         *px = frame_intensity as u8;
