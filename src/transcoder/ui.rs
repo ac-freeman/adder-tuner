@@ -120,6 +120,8 @@ impl TranscoderState {
         mut ui: &mut Ui,
         time: Res<Time>
     ) {
+        ui.heading("Drag and drop your source file here (.mp4, .aedat4)");
+
         ui.label(self.ui_info_state.source_name.clone());
 
         ui.label(format!(

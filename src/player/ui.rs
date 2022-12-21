@@ -25,5 +25,6 @@ impl PlayerState {
         time: Res<Time>
     ) {
 
+        ui.heading("Drag and drop your ADΔER file here (.adder)");
     }
 }
