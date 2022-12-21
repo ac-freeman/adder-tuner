@@ -1,19 +1,24 @@
 use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
-use adder_codec_rs::Codec;
+use adder_codec_rs::{Codec, DeltaT};
 use adder_codec_rs::framer::event_framer::{Framer, FramerBuilder, FrameSequence};
 use adder_codec_rs::framer::event_framer::FramerMode::INSTANTANEOUS;
 use adder_codec_rs::raw::raw_stream::RawStream;
 use bevy::prelude::Image;
+use opencv::core::{create_continuous, CV_64F, CV_64FC3, CV_8UC1, CV_8UC3, Mat};
 use crate::player::ui::PlayerUiState;
 
 #[derive(Default)]
 pub struct AdderPlayer {
-    pub(crate) frame_sequence: Option<FrameSequence<u8>>,
+    pub(crate) frame_sequence: Option<FrameSequence<u8>>,   // TODO: remove this
     pub(crate) input_stream: Option<RawStream>,
+    pub(crate) current_t: DeltaT,
+    pub(crate) display_mat: Mat,
     pub(crate) live_image: Image,
 }
+
+unsafe impl Sync for AdderPlayer {}
 
 #[derive(Debug)]
 struct AdderPlayerError(String);
@@ -34,7 +39,9 @@ impl AdderPlayer {
             }
             Some(ext) => {
                 match ext.to_str() {
-                    None => {Err(Box::new(AdderPlayerError("Invalid file type".into())))}
+                    None => {
+                        Err(Box::new(AdderPlayerError("Invalid file type".into())))
+                    }
                     Some("adder") => {
                         let input_path = path_buf.to_str().unwrap().to_string();
                         let mut stream: RawStream = Codec::new();
@@ -61,29 +68,41 @@ impl AdderPlayer {
                             .source(stream.get_source_type(), stream.source_camera)
                             .finish();
 
-                        // ui_state.total_frames = frame_sequence.frame_count;
+
+
+                        let mut display_mat = Mat::default();
+                        match stream.channels {
+                            1 => {
+                                create_continuous(
+                                    stream.height as i32,
+                                    stream.width as i32,
+                                    CV_8UC1,
+                                    &mut display_mat,
+                                )
+                                    .unwrap();
+                            }
+                            3 => {
+                                create_continuous(
+                                    stream.height as i32,
+                                    stream.width as i32,
+                                    CV_8UC3,
+                                    &mut display_mat,
+                                )
+                                    .unwrap();
+                            }
+                            _ => {
+                                return Err(Box::new(AdderPlayerError("Bad number of channels".into())));
+                            }
+                        }
 
                         println!("Creating adder player");
                         Ok(AdderPlayer {
                             frame_sequence: Some(frame_sequence),
                             input_stream: Some(stream),
+                            current_t: 0,
                             live_image: Default::default(),
+                            display_mat,
                         })
-
-                        // match FrameSequence::new(path_buf.to_str().unwrap().to_string(), current_frame) {
-                        //     Ok(frame_sequence) => {
-                        //         let mut adder_player = AdderPlayer {
-                        //             frame_sequence: Some(frame_sequence),
-                        //             input_stream: None,
-                        //             live_image: Image::new_empty(),
-                        //         };
-                        //         adder_player.update_image(ui_state);
-                        //         Ok(adder_player)
-                        //     }
-                        //     Err(e) => {
-                        //         Err(Box::new(AdderPlayerError(format!("Error opening file: {}", e))))
-                        //     }
-                        // }
                     }
                     Some(_) => {Err(Box::new(AdderPlayerError("Invalid file type".into())))}
                 }
