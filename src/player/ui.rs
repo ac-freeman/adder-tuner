@@ -15,12 +15,13 @@ use bevy::utils::tracing::{enabled, event};
 use bevy_egui::egui;
 use opencv::core::{Mat, MatTrait, MatTraitConstManual, MatTraitManual};
 use opencv::imgproc;
-use crate::{add_slider_row, Images, slider_pm};
+use crate::{add_checkbox_row, add_slider_row, Images, slider_pm};
 use crate::player::adder::AdderPlayer;
 
 pub struct PlayerUiState {
     pub(crate) playback_speed: f32,
     pub(crate) playing: bool,
+    pub(crate) looping: bool,
     pub(crate) current_frame: u32,
     pub(crate) total_frames: u32,
     pub(crate) current_time: f32,
@@ -32,6 +33,7 @@ impl Default for PlayerUiState {
         Self {
             playback_speed: 1.0,
             playing: true,
+            looping: true,
             current_frame: 0,
             total_frames: 0,
             current_time: 0.0,
@@ -98,7 +100,7 @@ impl PlayerState {
 
         let mut need_to_update =
             add_slider_row(true, "Playback speed:", ui, &mut self.ui_state.playback_speed, &mut self.ui_state_drag.playback_speed, 0.1..=5.0, 0.1)
-            | false;    // TODO: add more sliders
+            | add_checkbox_row(true, "Loop:", "Loop playback?", ui, &mut self.ui_state.looping);    // TODO: add more sliders
 
         ui.horizontal(|ui| {
             if ui.button("Play").clicked() {
@@ -108,6 +110,8 @@ impl PlayerState {
                 println!("Pause clicked");
                 self.ui_state.playing = false;
             }
+
+            // TODO: remove this?
             if ui.button("Stop").clicked() {
                 self.ui_state.playing = false;
                 need_to_update = true;
@@ -262,6 +266,15 @@ impl PlayerState {
             Some(s) => { s }
         };
 
+        // Reset the stats if we're starting a new looped playback of the video
+        if let Ok(pos) = stream.get_input_stream_position() {
+            if pos == stream.header_size as u64 {
+                frame_sequence.frames_written = 0;
+                self.ui_info_state.clear_stats();
+                self.player.current_t_ticks = 0;
+            }
+        }
+
         let display_mat = &mut self.player.display_mat;
 
         if frame_sequence.is_frame_0_filled().unwrap() {
@@ -330,14 +343,13 @@ impl PlayerState {
                     }
                 }
                 Err(_e) => {
-                    // TODO: add loop toggle button
                     println!("restarting");
                     stream.set_input_stream_position(stream.header_size as u64).unwrap();
-                    frame_sequence.frames_written = 0;
-                    self.ui_info_state.clear_stats();
-                    self.player.current_t_ticks = 0;
-                    self.player.frame_sequence = Some(self.player.framer_builder.clone().unwrap().finish());                    return;
-                    return
+                    self.player.frame_sequence = Some(self.player.framer_builder.clone().unwrap().finish());
+                    if !self.ui_state.looping {
+                        self.ui_state.playing = false;
+                    }
+                    return;
                 }
             }
         }
@@ -381,11 +393,22 @@ impl PlayerState {
 
     fn update_adder_params(&mut self) {
 
-        self.player = AdderPlayer::new(&self.player.path_buf.as_ref().unwrap(), self.ui_state.playback_speed).unwrap();
         self.ui_state.current_frame = 0;
         self.ui_state.total_frames = 0;
         self.ui_state.current_time = 0.0;
         self.ui_state.total_time = 0.0;
+        let path_buf = match &self.player.path_buf {
+            None => {
+                return;
+            }
+            Some(p) => {
+                p
+            }
+        };
+
+
+        self.player = AdderPlayer::new(path_buf, self.ui_state.playback_speed).unwrap();
+
         // let ui_state = &mut self.ui_state;
         // let ui_state_mem = &mut self.ui_state_mem;
         // // First, check if the sliders have changed. If they have, don't do anything this frame.

@@ -375,6 +375,13 @@ fn add_slider_row<Num: emath::Numeric + Pm>(enabled: bool, label: impl Into<Widg
     ret
 }
 
+fn add_checkbox_row(enabled: bool, label_1: impl Into<WidgetText>, label_2: impl Into<WidgetText>, ui: &mut Ui, mut checkbox_value: &mut bool) -> bool {
+    ui.add_enabled(enabled, egui::Label::new(label_1));
+    let ret = ui.add_enabled(enabled, egui::Checkbox::new(&mut checkbox_value, label_2)).changed();
+    ui.end_row();
+    ret
+}
+
 trait Pm {
     fn increment(&mut self, bound: &Self, interval: &Self);
     fn decrement(&mut self, bound: &Self, interval: &Self);
