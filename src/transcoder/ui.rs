@@ -109,7 +109,20 @@ impl TranscoderState {
     pub fn side_panel_ui(
         &mut self,
         mut ui: &mut Ui,
+        mut commands: Commands,
+        images: &mut ResMut<Assets<Image>>,
     ) {
+        ui.horizontal(|ui|{
+            ui.heading("ADΔER Parameters");
+            if ui.add(egui::Button::new("Reset params")).clicked() {
+                self.ui_state = Default::default();
+            }
+            if ui.add(egui::Button::new("Reset video")).clicked() {
+                self.transcoder = AdderTranscoder::default();
+                self.ui_info_state = InfoUiState::default();
+                commands.insert_resource(Images::default());
+            }
+        });
         egui::Grid::new("my_grid")
             .num_columns(2)
             .spacing([10.0, 4.0])

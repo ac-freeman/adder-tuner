@@ -17,9 +17,22 @@ use opencv::core::{Mat, MatTrait, MatTraitConstManual, MatTraitManual};
 use opencv::imgproc;
 use crate::{add_checkbox_row, add_slider_row, Images, slider_pm};
 use crate::player::adder::AdderPlayer;
+use crate::Tabs::Player;
+
+#[derive(PartialEq)]
+pub struct PlayerUiSliders {
+    pub(crate) playback_speed: f32,
+}
+
+impl Default for PlayerUiSliders {
+    fn default() -> Self {
+        Self {
+            playback_speed: 1.0,
+        }
+    }
+}
 
 pub struct PlayerUiState {
-    pub(crate) playback_speed: f32,
     pub(crate) playing: bool,
     pub(crate) looping: bool,
     pub(crate) current_frame: u32,
@@ -31,7 +44,6 @@ pub struct PlayerUiState {
 impl Default for PlayerUiState {
     fn default() -> Self {
         Self {
-            playback_speed: 1.0,
             playing: true,
             looping: true,
             current_frame: 0,
@@ -75,7 +87,8 @@ impl InfoUiState {
 pub struct PlayerState {
     pub(crate) player: AdderPlayer,
     pub ui_state: PlayerUiState,
-    pub ui_state_drag: PlayerUiState,
+    pub ui_sliders: PlayerUiSliders,
+    pub ui_sliders_drag: PlayerUiSliders,
     pub ui_info_state: InfoUiState,
     // pub(crate) ui_state_mem: UiStateMemory,
     // pub ui_info_state: InfoUiState,
@@ -86,7 +99,30 @@ impl PlayerState {
     pub fn side_panel_ui(
         &mut self,
         mut ui: &mut Ui,
+        mut commands: Commands,
+        images: &mut ResMut<Assets<Image>>,
     ) {
+        ui.horizontal(|ui|{
+            ui.heading("ADΔER Parameters");
+            if ui.add(egui::Button::new("Reset params")).clicked() {
+                self.ui_state = Default::default();
+                self.ui_sliders = Default::default();
+                if self.ui_sliders_drag != self.ui_sliders {
+                    self.reset_update_adder_params()
+                }
+                self.ui_sliders_drag = Default::default();
+
+            }
+            if ui.add(egui::Button::new("Reset video")).clicked() {
+                self.player = AdderPlayer::default();
+                self.ui_state = Default::default();
+                self.ui_sliders = Default::default();
+                self.ui_sliders_drag = Default::default();
+                self.ui_info_state = Default::default();
+                self.reset_update_adder_params();
+                commands.insert_resource(Images::default());
+            }
+        });
         egui::Grid::new("my_grid")
             .num_columns(2)
             .spacing([10.0, 4.0])
@@ -99,7 +135,7 @@ impl PlayerState {
     pub fn side_panel_grid_contents(&mut self, ui: &mut Ui) {
 
         let mut need_to_update =
-            add_slider_row(true, "Playback speed:", ui, &mut self.ui_state.playback_speed, &mut self.ui_state_drag.playback_speed, 0.1..=5.0, 0.1)
+            add_slider_row(true, "Playback speed:", ui, &mut self.ui_sliders.playback_speed, &mut self.ui_sliders_drag.playback_speed, 0.1..=5.0, 0.1)
             | add_checkbox_row(true, "Loop:", "Loop playback?", ui, &mut self.ui_state.looping);    // TODO: add more sliders
 
         ui.horizontal(|ui| {
@@ -120,7 +156,7 @@ impl PlayerState {
         ui.end_row();
 
         if need_to_update {
-            self.update_adder_params()
+            self.reset_update_adder_params()
         }
 
     }
@@ -298,13 +334,9 @@ impl PlayerState {
                     }
                 }
             }
-            println!("frames written {}", frame_sequence.frames_written);
             frame_sequence.frames_written += 1;
             self.player.current_t_ticks += frame_sequence.tpf;
-            println!("ticks {}", self.player.current_t_ticks);
             let duration = Duration::from_nanos(((self.player.current_t_ticks as f64 / stream.tps as f64) * 1.0e9) as u64);
-            println!("secs {}", self.player.current_t_ticks as f32 / stream.tps as f32);
-            println!("duration {:?}", duration);
             println!("duration {:?}", to_string(duration));
 
             let mut image_mat_bgra = Mat::default();
@@ -391,7 +423,7 @@ impl PlayerState {
         ));
     }
 
-    fn update_adder_params(&mut self) {
+    fn reset_update_adder_params(&mut self) {
 
         self.ui_state.current_frame = 0;
         self.ui_state.total_frames = 0;
@@ -407,7 +439,7 @@ impl PlayerState {
         };
 
 
-        self.player = AdderPlayer::new(path_buf, self.ui_state.playback_speed).unwrap();
+        self.player = AdderPlayer::new(path_buf, self.ui_sliders.playback_speed).unwrap();
 
         // let ui_state = &mut self.ui_state;
         // let ui_state_mem = &mut self.ui_state_mem;
@@ -443,7 +475,7 @@ impl PlayerState {
 
 
     pub fn replace_player(&mut self, path_buf: &std::path::PathBuf) {
-        self.player = AdderPlayer::new(path_buf, self.ui_state.playback_speed).unwrap();
+        self.player = AdderPlayer::new(path_buf, self.ui_sliders.playback_speed).unwrap();
         self.ui_info_state.source_name = RichText::from(path_buf.to_str().unwrap().to_string());
         self.ui_state.current_frame = 1;
 

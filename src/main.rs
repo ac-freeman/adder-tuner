@@ -170,7 +170,7 @@ fn draw_ui(
     mut commands: Commands,
     time: Res<Time>, // Time passed since last frame
     handles: Res<Images>,
-    images: ResMut<Assets<Image>>,
+    mut images: ResMut<Assets<Image>>,
     mut egui_ctx: ResMut<EguiContext>,
     // mut ui_state: ResMut<ParamsUiState>,
     // mut ui_info_state: ResMut<InfoUiState>,
@@ -181,24 +181,14 @@ fn draw_ui(
     egui::SidePanel::left("side_panel")
         .default_width(300.0)
         .show(egui_ctx.ctx_mut(), |ui| {
-            ui.horizontal(|ui|{
-                ui.heading("ADΔER Parameters");
-                if ui.add(egui::Button::new("Reset params")).clicked() {
-                    transcoder_state.ui_state = Default::default();
-                }
-                if ui.add(egui::Button::new("Reset video")).clicked() {
-                    transcoder_state.transcoder = AdderTranscoder::default();
-                    transcoder_state.ui_info_state = InfoUiState::default();
-                    commands.insert_resource(Images::default());
-                }
-            });
+
 
             match main_ui_state.view {
                 Tabs::Transcoder => {
-                    transcoder_state.side_panel_ui(ui);
+                    transcoder_state.side_panel_ui(ui, commands, &mut images);
                 }
                 Tabs::Player => {
-                    player_state.side_panel_ui(ui);
+                    player_state.side_panel_ui(ui, commands, &mut images);
                 }
             }
 
