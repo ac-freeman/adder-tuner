@@ -87,7 +87,6 @@ impl PlayerState {
         let frame_length = stream.tps as f64 / 30.0;    //TODO: temp
         {
         let display_mat = &mut self.ui_state.player.display_mat;
-        let mut frame_count: u128 = 1;
 
         loop {
             // if event_count % divisor == 0 {
@@ -98,7 +97,8 @@ impl PlayerState {
             //     )?;
             //     handle.flush().unwrap();
             // }
-            if self.ui_state.player.current_t as u128 > (frame_count * frame_length as u128) {
+            if self.ui_state.player.current_t as u128 > (self.ui_state.current_frame as u128 * frame_length as u128) {
+                self.ui_state.current_frame += 1;
                 break
                 // let wait_time = max(
                 //     ((1000.0 / args.playback_fps) as u128)
@@ -143,7 +143,9 @@ impl PlayerState {
                         *px = frame_intensity as u8;
                     }
                 }
-                Err(_e) => {
+                Err(e) => {
+                    // TODO: add loop toggle button
+                    stream.set_input_stream_position(stream.header_size as u64).unwrap();
                     break;
                 }
                 _ => {}
@@ -213,7 +215,7 @@ impl PlayerState {
 
     pub fn replace_player(&mut self, path_buf: &std::path::PathBuf) {
         self.ui_state.player = AdderPlayer::new(path_buf).unwrap();
-        self.ui_state.current_frame = 0;
+        self.ui_state.current_frame = 1;
 
     }
 }
