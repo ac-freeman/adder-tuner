@@ -15,6 +15,7 @@ use bevy::utils::tracing::{enabled, event};
 use bevy_egui::egui;
 use opencv::core::{Mat, MatTrait, MatTraitConstManual, MatTraitManual};
 use opencv::imgproc;
+use rayon::current_num_threads;
 use crate::{add_checkbox_row, add_slider_row, Images, slider_pm};
 use crate::player::adder::AdderPlayer;
 use crate::Tabs::Player;
@@ -22,12 +23,14 @@ use crate::Tabs::Player;
 #[derive(PartialEq)]
 pub struct PlayerUiSliders {
     pub(crate) playback_speed: f32,
+    pub(crate) thread_count: usize,
 }
 
 impl Default for PlayerUiSliders {
     fn default() -> Self {
         Self {
             playback_speed: 1.0,
+            thread_count: 4,
         }
     }
 }
@@ -135,8 +138,11 @@ impl PlayerState {
     pub fn side_panel_grid_contents(&mut self, ui: &mut Ui) {
 
         let mut need_to_update =
-            add_slider_row(true, "Playback speed:", ui, &mut self.ui_sliders.playback_speed, &mut self.ui_sliders_drag.playback_speed, 0.1..=5.0, 0.1)
-            | add_checkbox_row(true, "Loop:", "Loop playback?", ui, &mut self.ui_state.looping);    // TODO: add more sliders
+            add_slider_row(true, "Playback speed:", ui, &mut self.ui_sliders.playback_speed, &mut self.ui_sliders_drag.playback_speed, 0.1..=15.0, 0.1);
+
+        // TODO: decoding is single-threaded for now
+        add_slider_row(false, "Thread count:", ui, &mut self.ui_sliders.thread_count, &mut self.ui_sliders_drag.thread_count, 1..=(current_num_threads()-1).max(4), 1);
+        need_to_update |= add_checkbox_row(true, "Loop:", "Loop playback?", ui, &mut self.ui_state.looping);    // TODO: add more sliders
 
         ui.horizontal(|ui| {
             if ui.button("Play").clicked() {
