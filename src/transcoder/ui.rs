@@ -74,10 +74,10 @@ impl Default for UiStateMemory {
 pub struct InfoUiState {
     pub events_per_sec: f64,
     pub events_ppc_per_sec: f64,
-    pub events_ppc_total: u64,
+    pub events_ppc_total: f64,
     pub events_total: u64,
     pub source_name: RichText,
-    pub view_mode_radio_state: InstantaneousViewMode,
+    pub view_mode_radio_state: InstantaneousViewMode,   // TODO: Move to different struct
 }
 
 impl Default for InfoUiState {
@@ -85,7 +85,7 @@ impl Default for InfoUiState {
         InfoUiState {
             events_per_sec: 0.,
             events_ppc_per_sec: 0.,
-            events_ppc_total: 0,
+            events_ppc_total: 0.0,
             events_total: 0,
             source_name: RichText::new("No file selected yet"),
             view_mode_radio_state: InstantaneousViewMode::Intensity,
@@ -255,7 +255,7 @@ impl TranscoderState {
                     ui_info_state.events_total += events_vec.len() as u64;
                     ui_info_state.events_per_sec += events_vec.len() as f64;
                 }
-                ui_info_state.events_ppc_total = ui_info_state.events_total as u64 / (source.get_video().width as u64 * source.get_video().height as u64 * source.get_video().channels as u64);
+                ui_info_state.events_ppc_total = ui_info_state.events_total as f64 / (source.get_video().width as f64 * source.get_video().height as f64 * source.get_video().channels as f64);
                 let source_fps = source.get_video().get_tps() as f64 / source.get_video().get_ref_time() as f64;
                 ui_info_state.events_per_sec = ui_info_state.events_per_sec  as f64 * source_fps;
                 ui_info_state.events_ppc_per_sec = ui_info_state.events_per_sec / (source.get_video().width as f64 * source.get_video().height as f64 * source.get_video().channels as f64);

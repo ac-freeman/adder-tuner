@@ -182,7 +182,7 @@ pub(crate) fn replace_adder_transcoder(commands: &mut Commands,
                                        current_frame: u32) {
     let mut ui_info_state = &mut transcoder_state.ui_info_state;
     ui_info_state.events_per_sec = 0.0;
-    ui_info_state.events_ppc_total = 0;
+    ui_info_state.events_ppc_total = 0.0;
     ui_info_state.events_total = 0;
     ui_info_state.events_ppc_per_sec = 0.0;
     match AdderTranscoder::new(path_buf, &mut transcoder_state.ui_state, current_frame) {
