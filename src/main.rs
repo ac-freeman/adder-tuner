@@ -278,8 +278,7 @@ fn consume_source(
             transcoder_state.consume_source(images, handles, commands);
         }
         Tabs::Player => {
-            // player_state.consume_source_fast(images, handles, commands);
-            player_state.consume_source_accurate(images, handles, commands);
+            player_state.consume_source(images, handles, commands);
         }
     }
 }
@@ -368,6 +367,22 @@ fn add_slider_row<Num: emath::Numeric + Pm>(enabled: bool, label: impl Into<Widg
 fn add_checkbox_row(enabled: bool, label_1: impl Into<WidgetText>, label_2: impl Into<WidgetText>, ui: &mut Ui, mut checkbox_value: &mut bool) -> bool {
     ui.add_enabled(enabled, egui::Label::new(label_1));
     let ret = ui.add_enabled(enabled, egui::Checkbox::new(&mut checkbox_value, label_2)).changed();
+    ui.end_row();
+    ret
+}
+
+fn add_radio_row<'a, Value: PartialEq + Clone>(enabled: bool, label: impl Into<WidgetText>, options: Vec<(impl Into<WidgetText> + Clone, Value)>, ui: &mut Ui, radio_state: &'a mut Value) -> bool {
+    ui.label(label);
+    let mut ret = false;
+    ui.horizontal(|ui| {
+        for mut option in options {
+            ret |= ui.radio_value(radio_state, option.1.clone(), option.0.clone()).changed();
+        }
+
+        // ui.radio_value(&mut radio_state, InstantaneousViewMode::Intensity, "Intensity");
+        // ui.radio_value(&mut radio_state, InstantaneousViewMode::D, "D");
+        // ui.radio_value(&mut radio_state, InstantaneousViewMode::DeltaT, "Δt");
+    });
     ui.end_row();
     ret
 }

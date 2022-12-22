@@ -4,7 +4,8 @@ use std::time::Duration;
 use adder_codec_rs::{Codec, SourceCamera};
 use adder_codec_rs::framer::event_framer::Framer;
 use adder_codec_rs::framer::scale_intensity::event_to_intensity;
-use adder_codec_rs::raw::raw_stream::RawStream;
+use adder_codec_rs::raw::raw_stream::{RawStream, StreamError};
+use adder_codec_rs::transcoder::source::video::InstantaneousViewMode;
 use bevy::asset::Assets;
 use bevy::prelude::{Commands, Image, Res, ResMut};
 use bevy::time::Time;
@@ -16,7 +17,7 @@ use bevy_egui::egui;
 use opencv::core::{Mat, MatTrait, MatTraitConstManual, MatTraitManual};
 use opencv::imgproc;
 use rayon::current_num_threads;
-use crate::{add_checkbox_row, add_slider_row, Images, slider_pm};
+use crate::{add_checkbox_row, add_radio_row, add_slider_row, Images, slider_pm};
 use crate::player::adder::AdderPlayer;
 use crate::Tabs::Player;
 
@@ -35,9 +36,17 @@ impl Default for PlayerUiSliders {
     }
 }
 
+#[derive(PartialEq, Clone)]
+enum ReconstructionMethod {
+    Fast,
+    Accurate,
+}
+
 pub struct PlayerUiState {
     pub(crate) playing: bool,
     pub(crate) looping: bool,
+    pub(crate) view_mode: InstantaneousViewMode,
+    reconstruction_method: ReconstructionMethod,
     pub(crate) current_frame: u32,
     pub(crate) total_frames: u32,
     pub(crate) current_time: f32,
@@ -49,6 +58,8 @@ impl Default for PlayerUiState {
         Self {
             playing: true,
             looping: true,
+            view_mode: InstantaneousViewMode::Intensity,
+            reconstruction_method: ReconstructionMethod::Accurate,
             current_frame: 0,
             total_frames: 0,
             current_time: 0.0,
@@ -144,6 +155,21 @@ impl PlayerState {
         add_slider_row(false, "Thread count:", ui, &mut self.ui_sliders.thread_count, &mut self.ui_sliders_drag.thread_count, 1..=(current_num_threads()-1).max(4), 1);
         need_to_update |= add_checkbox_row(true, "Loop:", "Loop playback?", ui, &mut self.ui_state.looping);    // TODO: add more sliders
 
+        // TODO
+        need_to_update |= add_radio_row(false, "View mode:",
+                                        vec![
+                                            ("Intensity", InstantaneousViewMode::Intensity,),
+                                            ("D", InstantaneousViewMode::D,),
+                                            ("Δt", InstantaneousViewMode::DeltaT,)
+                                        ],
+                                        ui, &mut self.ui_state.view_mode);
+        need_to_update |= add_radio_row(true, "Reconstruction method:",
+                                        vec![
+                                            ("Fast", ReconstructionMethod::Fast,),
+                                            ("Accurate", ReconstructionMethod::Accurate,),
+                                        ],
+                                        ui, &mut self.ui_state.reconstruction_method);
+
         ui.horizontal(|ui| {
             if ui.button("Play").clicked() {
                 self.ui_state.playing = true;
@@ -167,12 +193,55 @@ impl PlayerState {
 
     }
 
-    pub fn consume_source_fast(
+    pub fn consume_source(
         &mut self,
         mut images: ResMut<Assets<Image>>,
         mut handles: ResMut<Images>,
         mut commands: Commands,
     ) {
+        if !self.ui_state.playing {
+            return;
+        }
+
+        let stream = match &mut self.player.input_stream {
+            None => {
+                return;
+            }
+            Some(s) => { s }
+        };
+
+        // Reset the stats if we're starting a new looped playback of the video
+        if let Ok(pos) = stream.get_input_stream_position() {
+            if pos == stream.header_size as u64 {
+                self.player.frame_sequence.as_mut().unwrap().frames_written = 0;
+                self.ui_info_state.clear_stats();
+                self.ui_state.current_time = 0.0;
+                self.ui_state.total_time = 0.0;
+                self.ui_state.current_frame = 0;
+                self.ui_state.total_frames = 0;
+                self.player.current_t_ticks = 0;
+            }
+        }
+
+        match self.ui_state.reconstruction_method {
+            ReconstructionMethod::Fast => {
+                self.consume_source_fast(images, handles, commands);
+            }
+            ReconstructionMethod::Accurate => {
+                self.consume_source_accurate(images, handles, commands);
+            }
+        }
+    }
+
+    fn consume_source_fast(
+        &mut self,
+        mut images: ResMut<Assets<Image>>,
+        mut handles: ResMut<Images>,
+        mut commands: Commands,
+    ) {
+        if self.ui_state.current_frame == 0 {
+            self.ui_state.current_frame = 1;    // TODO: temporary hack
+        }
         if !self.ui_state.playing {
             return;
         }
@@ -190,7 +259,7 @@ impl PlayerState {
             Some(s) => { s }
         };
 
-        let frame_length = stream.tps as f64 / 30.0;    //TODO: temp
+        let frame_length = stream.ref_interval as f64 * self.ui_sliders.playback_speed as f64;    //TODO: temp
         {
         let display_mat = &mut self.player.display_mat;
 
@@ -204,6 +273,7 @@ impl PlayerState {
             //     handle.flush().unwrap();
             // }
             if self.player.current_t_ticks as u128 > (self.ui_state.current_frame as u128 * frame_length as u128) {
+                println!("Frame {}", self.ui_state.current_frame);
                 self.ui_state.current_frame += 1;
                 break
                 // let wait_time = max(
@@ -253,9 +323,17 @@ impl PlayerState {
                     // }
                 }
                 Err(e) => {
-                    // TODO: add loop toggle button
-                    stream.set_input_stream_position(stream.header_size as u64).unwrap();
+                    match stream.set_input_stream_position(stream.header_size as u64) {
+                        Ok(_) => {}
+                        Err(ee) => {eprintln!("{}", ee)}
+                    };
+                    self.player.frame_sequence = Some(self.player.framer_builder.clone().unwrap().finish());
+                    if !self.ui_state.looping {
+                        self.ui_state.playing = false;
+                    }
                     self.player.current_t_ticks = 0;
+                    return;
+
                 }
                 _ => {}
             }
@@ -290,10 +368,6 @@ impl PlayerState {
         mut handles: ResMut<Images>,
         mut commands: Commands,
     ) {
-        if !self.ui_state.playing {
-            return;
-        }
-
         let stream = match &mut self.player.input_stream {
             None => {
                 return;
@@ -307,15 +381,6 @@ impl PlayerState {
             }
             Some(s) => { s }
         };
-
-        // Reset the stats if we're starting a new looped playback of the video
-        if let Ok(pos) = stream.get_input_stream_position() {
-            if pos == stream.header_size as u64 {
-                frame_sequence.frames_written = 0;
-                self.ui_info_state.clear_stats();
-                self.player.current_t_ticks = 0;
-            }
-        }
 
         let display_mat = &mut self.player.display_mat;
 
@@ -431,7 +496,10 @@ impl PlayerState {
 
     fn reset_update_adder_params(&mut self) {
 
-        self.ui_state.current_frame = 0;
+        self.ui_state.current_frame = match self.ui_state.reconstruction_method {
+            ReconstructionMethod::Fast => { 1}
+            ReconstructionMethod::Accurate => { 0}
+        };
         self.ui_state.total_frames = 0;
         self.ui_state.current_time = 0.0;
         self.ui_state.total_time = 0.0;
