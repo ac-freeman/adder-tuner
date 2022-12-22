@@ -279,7 +279,8 @@ fn consume_source(
             transcoder_state.consume_source(images, handles, commands);
         }
         Tabs::Player => {
-            player_state.consume_source(images, handles, commands);
+            // player_state.consume_source_fast(images, handles, commands);
+            player_state.consume_source_accurate(images, handles, commands);
         }
     }
 }

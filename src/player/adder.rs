@@ -11,6 +11,7 @@ use crate::player::ui::PlayerUiState;
 
 #[derive(Default)]
 pub struct AdderPlayer {
+    pub(crate) framer_builder: Option<FramerBuilder>,
     pub(crate) frame_sequence: Option<FrameSequence<u8>>,   // TODO: remove this
     pub(crate) input_stream: Option<RawStream>,
     pub(crate) current_t: DeltaT,
@@ -56,7 +57,7 @@ impl AdderPlayer {
                             reconstructed_frame_rate as u32
                         );
 
-                        let mut frame_sequence: FrameSequence<u8> = FramerBuilder::new(
+                        let framer_builder: FramerBuilder = FramerBuilder::new(
                             stream.height.into(),
                             stream.width.into(),
                             stream.channels.into(),
@@ -65,7 +66,10 @@ impl AdderPlayer {
                             .codec_version(stream.codec_version)
                             .time_parameters(stream.tps, stream.ref_interval, reconstructed_frame_rate)
                             .mode(INSTANTANEOUS)
-                            .source(stream.get_source_type(), stream.source_camera)
+                            .source(stream.get_source_type(), stream.source_camera);
+
+                        let mut frame_sequence: FrameSequence<u8> = framer_builder
+                            .clone()
                             .finish();
 
 
@@ -73,6 +77,7 @@ impl AdderPlayer {
                         let mut display_mat = Mat::default();
                         match stream.channels {
                             1 => {
+                                println!("1 channel!");
                                 create_continuous(
                                     stream.height as i32,
                                     stream.width as i32,
@@ -82,6 +87,7 @@ impl AdderPlayer {
                                     .unwrap();
                             }
                             3 => {
+                                println!("3 channel!");
                                 create_continuous(
                                     stream.height as i32,
                                     stream.width as i32,
@@ -97,6 +103,7 @@ impl AdderPlayer {
 
                         println!("Creating adder player");
                         Ok(AdderPlayer {
+                            framer_builder: Some(framer_builder),
                             frame_sequence: Some(frame_sequence),
                             input_stream: Some(stream),
                             current_t: 0,

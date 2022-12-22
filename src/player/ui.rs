@@ -12,7 +12,7 @@ use bevy::ecs::system::Resource;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::utils::tracing::event;
 use bevy_egui::egui;
-use opencv::core::{Mat, MatTraitConstManual, MatTraitManual};
+use opencv::core::{Mat, MatTrait, MatTraitConstManual, MatTraitManual};
 use opencv::imgproc;
 use crate::Images;
 use crate::player::adder::AdderPlayer;
@@ -64,7 +64,7 @@ impl PlayerState {
 
     }
 
-    pub fn consume_source(
+    pub fn consume_source_fast(
         &mut self,
         mut images: ResMut<Assets<Image>>,
         mut handles: ResMut<Images>,
@@ -138,15 +138,18 @@ impl PlayerState {
                             todo!("Not yet implemented")
                         }
                     } * 255.0;
-                    unsafe {
-                        let px: &mut u8 = display_mat.at_3d_unchecked_mut(y, x, c).unwrap();
-                        *px = frame_intensity as u8;
-                    }
+
+                    let db = display_mat.data_bytes_mut().unwrap();
+                    db[(y*stream.width as i32*stream.channels as i32 + x* stream.channels as i32 + c) as usize] = frame_intensity as u8;
+                    // unsafe {
+                    //     let px: &mut u8 = display_mat.at_3d_unchecked_mut(y, x, c).unwrap();
+                    //     *px = frame_intensity as u8;
+                    // }
                 }
                 Err(e) => {
                     // TODO: add loop toggle button
                     stream.set_input_stream_position(stream.header_size as u64).unwrap();
-                    break;
+                    self.ui_state.player.current_t = 0;
                 }
                 _ => {}
             }
@@ -173,35 +176,97 @@ impl PlayerState {
 
         let handle = images.add(self.ui_state.player.live_image.clone());
         handles.image_view = handle;
+    }
 
-        // last_frame_displayed_ts = Instant::now();
-        // frame_count += 1;
+    pub fn consume_source_accurate(
+        &mut self,
+        mut images: ResMut<Assets<Image>>,
+        mut handles: ResMut<Images>,
+        mut commands: Commands,
+    ) {
+        let stream = match &mut self.ui_state.player.input_stream {
+            None => {
+                return;
+            }
+            Some(s) => { s }
+        };
+
+        let frame_sequence = match &mut self.ui_state.player.frame_sequence {
+            None => {
+                return;
+            }
+            Some(s) => { s }
+        };
+
+        let display_mat = &mut self.ui_state.player.display_mat;
+
+        loop {
+            match stream.decode_event() {
+                Ok(mut event) => {
+                    if frame_sequence.ingest_event(&mut event) {
+                        println!("writing frame");
+                        let none_val = u8::default();
+                        let mut idx = 0;
+                        let mut x = 0;
+                        let mut y = 0;
+                        let mut c = 0;
+                        for chunk_num in 0..frame_sequence.get_frame_chunks_num() {
+                            println!("chunk {}", chunk_num);
+                            match frame_sequence.pop_next_frame_for_chunk(chunk_num) {
+                                Some(arr) => {
+                                    for px in arr.iter() {
+                                        match px {
+                                            Some(event) =>  {
+                                                let db = display_mat.data_bytes_mut().unwrap();
+                                                db[idx] = *event;
+                                                idx += 1;
+                                            },
+                                            None => { },
+                                        };
+                                    }
+                                }
+                                None => {
+                                    println!("Couldn't pop chunk {}!", chunk_num)
+                                }
+                            }
+                        }
+                        println!("frames written {}", frame_sequence.frames_written);
+                        frame_sequence.frames_written += 1;
+                        break;
+                    }
+                }
+                Err(_e) => {
+                    // TODO: add loop toggle button
+                    println!("restarting");
+                    stream.set_input_stream_position(stream.header_size as u64).unwrap();
+                    frame_sequence.frames_written = 0;
+                    self.ui_state.player.current_t = 0;
+                    self.ui_state.player.frame_sequence = Some(self.ui_state.player.framer_builder.clone().unwrap().finish());                    return;
+                    return;
+                }
+            }
+        }
+
+        let mut image_mat_bgra = Mat::default();
+        imgproc::cvt_color(display_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
 
 
+        // TODO: refactor
+        let image_bevy = Image::new(
+            Extent3d {
+                width: stream.width.into(),
+                height: stream.height.into(),
+                depth_or_array_layers: 1,
+            },
+
+            TextureDimension::D2,
+            Vec::from(image_mat_bgra.data_bytes().unwrap()),
+            TextureFormat::Bgra8UnormSrgb);
+        self.ui_state.player.live_image = image_bevy;
 
 
-
-        // let image_mat = &source.get_video().instantaneous_frame;
-        //
-        // // add alpha channel
-        // let mut image_mat_bgra = Mat::default();
-        // imgproc::cvt_color(&image_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
-        //
-        // let image_bevy = Image::new(
-        //     Extent3d {
-        //         width: source.get_video().width.into(),
-        //         height: source.get_video().height.into(),
-        //         depth_or_array_layers: 1,
-        //     },
-        //
-        //     TextureDimension::D2,
-        //     Vec::from(image_mat_bgra.data_bytes().unwrap()),
-        //     TextureFormat::Bgra8UnormSrgb);
-        // self.transcoder.live_image = image_bevy;
-        //
-        //
-        // let handle = images.add(self.transcoder.live_image.clone());
-        // handles.image_view = handle;
+        let handle = images.add(self.ui_state.player.live_image.clone());
+        handles.image_view = handle;
     }
 
     pub fn central_panel_ui(
