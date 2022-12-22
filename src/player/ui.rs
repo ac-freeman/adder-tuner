@@ -200,38 +200,61 @@ impl PlayerState {
 
         let display_mat = &mut self.ui_state.player.display_mat;
 
+        if frame_sequence.is_frame_0_filled().unwrap() {
+            let mut idx = 0;
+            for chunk_num in 0..frame_sequence.get_frame_chunks_num() {
+                match frame_sequence.pop_next_frame_for_chunk(chunk_num) {
+                    Some(arr) => {
+                        for px in arr.iter() {
+                            match px {
+                                Some(event) =>  {
+                                    let db = display_mat.data_bytes_mut().unwrap();
+                                    db[idx] = *event;
+                                    idx += 1;
+                                },
+                                None => { },
+                            };
+                        }
+                    }
+                    None => {
+                        println!("Couldn't pop chunk {}!", chunk_num)
+                    }
+                }
+            }
+            println!("frames written {}", frame_sequence.frames_written);
+            frame_sequence.frames_written += 1;
+
+            let mut image_mat_bgra = Mat::default();
+            imgproc::cvt_color(display_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
+
+
+            // TODO: refactor
+            let image_bevy = Image::new(
+                Extent3d {
+                    width: stream.width.into(),
+                    height: stream.height.into(),
+                    depth_or_array_layers: 1,
+                },
+
+                TextureDimension::D2,
+                Vec::from(image_mat_bgra.data_bytes().unwrap()),
+                TextureFormat::Bgra8UnormSrgb);
+            self.ui_state.player.live_image = image_bevy;
+
+
+            let handle = images.add(self.ui_state.player.live_image.clone());
+            handles.image_view = handle;
+        }
+
+
+
+
+
         loop {
             match stream.decode_event() {
                 Ok(mut event) => {
                     if frame_sequence.ingest_event(&mut event) {
-                        println!("writing frame");
-                        let none_val = u8::default();
-                        let mut idx = 0;
-                        let mut x = 0;
-                        let mut y = 0;
-                        let mut c = 0;
-                        for chunk_num in 0..frame_sequence.get_frame_chunks_num() {
-                            println!("chunk {}", chunk_num);
-                            match frame_sequence.pop_next_frame_for_chunk(chunk_num) {
-                                Some(arr) => {
-                                    for px in arr.iter() {
-                                        match px {
-                                            Some(event) =>  {
-                                                let db = display_mat.data_bytes_mut().unwrap();
-                                                db[idx] = *event;
-                                                idx += 1;
-                                            },
-                                            None => { },
-                                        };
-                                    }
-                                }
-                                None => {
-                                    println!("Couldn't pop chunk {}!", chunk_num)
-                                }
-                            }
-                        }
-                        println!("frames written {}", frame_sequence.frames_written);
-                        frame_sequence.frames_written += 1;
+
                         break;
                     }
                 }
@@ -242,31 +265,10 @@ impl PlayerState {
                     frame_sequence.frames_written = 0;
                     self.ui_state.player.current_t = 0;
                     self.ui_state.player.frame_sequence = Some(self.ui_state.player.framer_builder.clone().unwrap().finish());                    return;
-                    return;
+                    return
                 }
             }
         }
-
-        let mut image_mat_bgra = Mat::default();
-        imgproc::cvt_color(display_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
-
-
-        // TODO: refactor
-        let image_bevy = Image::new(
-            Extent3d {
-                width: stream.width.into(),
-                height: stream.height.into(),
-                depth_or_array_layers: 1,
-            },
-
-            TextureDimension::D2,
-            Vec::from(image_mat_bgra.data_bytes().unwrap()),
-            TextureFormat::Bgra8UnormSrgb);
-        self.ui_state.player.live_image = image_bevy;
-
-
-        let handle = images.add(self.ui_state.player.live_image.clone());
-        handles.image_view = handle;
     }
 
     pub fn central_panel_ui(
