@@ -1,5 +1,6 @@
 use std::io;
 use std::io::Write;
+use std::time::Duration;
 use adder_codec_rs::{Codec, SourceCamera};
 use adder_codec_rs::framer::event_framer::Framer;
 use adder_codec_rs::framer::scale_intensity::event_to_intensity;
@@ -97,7 +98,7 @@ impl PlayerState {
             //     )?;
             //     handle.flush().unwrap();
             // }
-            if self.ui_state.player.current_t as u128 > (self.ui_state.current_frame as u128 * frame_length as u128) {
+            if self.ui_state.player.current_t_ticks as u128 > (self.ui_state.current_frame as u128 * frame_length as u128) {
                 self.ui_state.current_frame += 1;
                 break
                 // let wait_time = max(
@@ -114,7 +115,7 @@ impl PlayerState {
                     let x = event.coord.x as i32;
                     let c = event.coord.c.unwrap_or(0) as i32;
                     if (y | x | c) == 0x0 {
-                        self.ui_state.player.current_t += event.delta_t;
+                        self.ui_state.player.current_t_ticks += event.delta_t;
                     }
 
                     let frame_intensity = (event_to_intensity(&event) * stream.ref_interval as f64)
@@ -149,7 +150,7 @@ impl PlayerState {
                 Err(e) => {
                     // TODO: add loop toggle button
                     stream.set_input_stream_position(stream.header_size as u64).unwrap();
-                    self.ui_state.player.current_t = 0;
+                    self.ui_state.player.current_t_ticks = 0;
                 }
                 _ => {}
             }
@@ -223,6 +224,12 @@ impl PlayerState {
             }
             println!("frames written {}", frame_sequence.frames_written);
             frame_sequence.frames_written += 1;
+            self.ui_state.player.current_t_ticks += frame_sequence.tpf;
+            println!("ticks {}", self.ui_state.player.current_t_ticks);
+            let duration = Duration::from_nanos(((self.ui_state.player.current_t_ticks as f64 / stream.tps as f64) * 1.0e9) as u64);
+            println!("secs {}", self.ui_state.player.current_t_ticks as f32 / stream.tps as f32);
+            println!("duration {:?}", duration);
+            println!("duration {:?}", to_string(duration));
 
             let mut image_mat_bgra = Mat::default();
             imgproc::cvt_color(display_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
@@ -263,7 +270,7 @@ impl PlayerState {
                     println!("restarting");
                     stream.set_input_stream_position(stream.header_size as u64).unwrap();
                     frame_sequence.frames_written = 0;
-                    self.ui_state.player.current_t = 0;
+                    self.ui_state.player.current_t_ticks = 0;
                     self.ui_state.player.frame_sequence = Some(self.ui_state.player.framer_builder.clone().unwrap().finish());                    return;
                     return
                 }
@@ -285,4 +292,12 @@ impl PlayerState {
         self.ui_state.current_frame = 1;
 
     }
+}
+
+fn to_string(duration: Duration) -> String {
+    let hours = duration.as_secs() / 3600;
+    let mins = (duration.as_secs() % 3600) / 60;
+    let secs = duration.as_secs() % 60;
+    let nanos = duration.subsec_nanos();
+    format!("{}:{}:{}.{:09}", hours, mins, secs, nanos)
 }

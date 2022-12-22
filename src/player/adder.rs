@@ -14,7 +14,7 @@ pub struct AdderPlayer {
     pub(crate) framer_builder: Option<FramerBuilder>,
     pub(crate) frame_sequence: Option<FrameSequence<u8>>,   // TODO: remove this
     pub(crate) input_stream: Option<RawStream>,
-    pub(crate) current_t: DeltaT,
+    pub(crate) current_t_ticks: DeltaT,
     pub(crate) display_mat: Mat,
     pub(crate) live_image: Image,
 }
@@ -106,7 +106,7 @@ impl AdderPlayer {
                             framer_builder: Some(framer_builder),
                             frame_sequence: Some(frame_sequence),
                             input_stream: Some(stream),
-                            current_t: 0,
+                            current_t_ticks: 0,
                             live_image: Default::default(),
                             display_mat,
                         })
