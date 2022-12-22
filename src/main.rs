@@ -261,9 +261,18 @@ fn draw_ui(
     });
 }
 
-fn update_adder_params(mut transcoder_state: ResMut<TranscoderState>,
+fn update_adder_params(
+    main_ui_state: Res<MainUiState>,
+    mut transcoder_state: ResMut<TranscoderState>,
+    mut player_state: ResMut<PlayerState>,
                        mut commands: Commands) {
-    transcoder_state.update_adder_params(commands);
+    match main_ui_state.view {
+        Tabs::Transcoder => {transcoder_state.update_adder_params(commands);}
+        Tabs::Player => {
+            // player_state.update_adder_params(commands);
+        }
+    }
+
 }
 
 fn consume_source(
@@ -336,19 +345,34 @@ fn file_drop(
 
 
 
-/// A slider with +/- buttons
-fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, ui: &mut Ui, value: &mut Num, range: RangeInclusive<Num>, interval: Num) {
+/// A slider with +/- buttons. Returns true if the value was changed.
+fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, ui: &mut Ui, instant_value: &mut Num, drag_value: &mut Num, range: RangeInclusive<Num>, interval: Num) -> bool {
+    let start_value = *instant_value;
     ui.add_enabled_ui(enabled, |ui| {
         ui.horizontal(|ui| {
             if ui.button("-").clicked() {
-                value.decrement(range.start(), &interval);
+                instant_value.decrement(range.start(), &interval);
+                *drag_value = *instant_value;
             }
-            ui.add(egui::Slider::new(value, range.clone()));
+            if ui.add(egui::Slider::new(drag_value, range.clone())).drag_released() {
+                *instant_value = *drag_value;
+            }
             if ui.button("+").clicked() {
-                value.increment(range.end(), &interval);
+                instant_value.increment(range.end(), &interval);
+                *drag_value = *instant_value;
             }
         });
     });
+
+    return *instant_value != start_value
+
+}
+
+fn add_slider_row<Num: emath::Numeric + Pm>(enabled: bool, label: impl Into<WidgetText>, ui: &mut Ui, instant_value: &mut Num, drag_value: &mut Num, range: RangeInclusive<Num>, interval: Num) -> bool {
+    ui.add_enabled(enabled, egui::Label::new(label));
+    let ret = slider_pm(enabled, ui, instant_value, drag_value, range, interval);
+    ui.end_row();
+    ret
 }
 
 trait Pm {

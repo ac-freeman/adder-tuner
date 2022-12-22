@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
-use adder_codec_rs::{Codec, DeltaT};
+use adder_codec_rs::{Codec, DeltaT, SourceCamera};
 use adder_codec_rs::framer::event_framer::{Framer, FramerBuilder, FrameSequence};
 use adder_codec_rs::framer::event_framer::FramerMode::INSTANTANEOUS;
 use adder_codec_rs::raw::raw_stream::RawStream;
@@ -17,6 +17,7 @@ pub struct AdderPlayer {
     pub(crate) current_t_ticks: DeltaT,
     pub(crate) display_mat: Mat,
     pub(crate) live_image: Image,
+    pub(crate) path_buf: Option<PathBuf>,
 }
 
 unsafe impl Sync for AdderPlayer {}
@@ -33,7 +34,7 @@ impl fmt::Display for AdderPlayerError {
 impl Error for AdderPlayerError {}
 
 impl AdderPlayer {
-    pub(crate) fn new(path_buf: &PathBuf) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(path_buf: &PathBuf, playback_speed: f32) -> Result<Self, Box<dyn Error>> {
         match path_buf.extension() {
             None => {
                 Err(Box::new(AdderPlayerError("Invalid file type".into())))
@@ -49,13 +50,36 @@ impl AdderPlayer {
                         stream.open_reader(input_path).expect("Invalid path");
                         stream.decode_header().expect("Invalid header");
 
-                        let reconstructed_frame_rate = (stream.tps / stream.ref_interval) as f64;
+                        let mut reconstructed_frame_rate = (stream.tps / stream.ref_interval) as f64;
                         println!("reconstructed_frame_rate: {}", reconstructed_frame_rate);
-                        // For instantaneous reconstruction, make sure the frame rate matches the source video rate
-                        assert_eq!(
-                            stream.tps / stream.ref_interval,
-                            reconstructed_frame_rate as u32
-                        );
+
+                        // If framed video source, with special scheme, don't want to adjust the
+                        // recon frame rate, just the playback frame rate
+                        // if stream.codec_version > 0
+                        //     && match stream.source_camera {
+                        //     SourceCamera::FramedU8 => true,
+                        //     SourceCamera::FramedU16 => true,
+                        //     SourceCamera::FramedU32 => true,
+                        //     SourceCamera::FramedU64 => true,
+                        //     SourceCamera::FramedF32 => true,
+                        //     SourceCamera::FramedF64 => true,
+                        //     SourceCamera::Dvs => false,
+                        //     SourceCamera::DavisU8 => false, // TODO: switch statement on the transcode MODE (frame-perfect or continuous), not just the source
+                        //     SourceCamera::Atis => false,
+                        //     SourceCamera::Asint => false,
+                        // } {
+                        //     // For instantaneous reconstruction, make sure the frame rate matches the source video rate
+                        //     assert_eq!(
+                        //         stream.tps / stream.ref_interval,
+                        //         reconstructed_frame_rate as u32
+                        //     );
+                        // }
+                        // else {
+                            reconstructed_frame_rate = reconstructed_frame_rate / playback_speed as f64;
+                            println!("NEW reconstructed_frame_rate: {}", reconstructed_frame_rate);
+                        // }
+
+
 
                         let framer_builder: FramerBuilder = FramerBuilder::new(
                             stream.height.into(),
@@ -109,6 +133,7 @@ impl AdderPlayer {
                             current_t_ticks: 0,
                             live_image: Default::default(),
                             display_mat,
+                            path_buf: Some(path_buf.to_path_buf()),
                         })
                     }
                     Some(_) => {Err(Box::new(AdderPlayerError("Invalid file type".into())))}

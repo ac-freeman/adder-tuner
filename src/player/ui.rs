@@ -11,14 +11,13 @@ use bevy::time::Time;
 use bevy_egui::egui::{RichText, Ui};
 use bevy::ecs::system::Resource;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy::utils::tracing::event;
+use bevy::utils::tracing::{enabled, event};
 use bevy_egui::egui;
 use opencv::core::{Mat, MatTrait, MatTraitConstManual, MatTraitManual};
 use opencv::imgproc;
-use crate::Images;
+use crate::{add_slider_row, Images, slider_pm};
 use crate::player::adder::AdderPlayer;
 
-#[derive(Default)]
 pub struct PlayerUiState {
     pub(crate) playback_speed: f32,
     pub(crate) playing: bool,
@@ -26,6 +25,19 @@ pub struct PlayerUiState {
     pub(crate) total_frames: u32,
     pub(crate) current_time: f32,
     pub(crate) total_time: f32,
+}
+
+impl Default for PlayerUiState {
+    fn default() -> Self {
+        Self {
+            playback_speed: 1.0,
+            playing: true,
+            current_frame: 0,
+            total_frames: 0,
+            current_time: 0.0,
+            total_time: 0.0,
+        }
+    }
 }
 
 pub struct InfoUiState {
@@ -61,6 +73,7 @@ impl InfoUiState {
 pub struct PlayerState {
     pub(crate) player: AdderPlayer,
     pub ui_state: PlayerUiState,
+    pub ui_state_drag: PlayerUiState,
     pub ui_info_state: InfoUiState,
     // pub(crate) ui_state_mem: UiStateMemory,
     // pub ui_info_state: InfoUiState,
@@ -72,25 +85,39 @@ impl PlayerState {
         &mut self,
         mut ui: &mut Ui,
     ) {
-        ui.add(
-            egui::Slider::new(&mut self.ui_state.playback_speed, 0.0..=10.0)
-                .text("Playback speed"),
-        );
-        ui.separator();
+        egui::Grid::new("my_grid")
+            .num_columns(2)
+            .spacing([10.0, 4.0])
+            .striped(true)
+            .show(ui, |ui| {
+                self.side_panel_grid_contents(ui);
+            });
+    }
+
+    pub fn side_panel_grid_contents(&mut self, ui: &mut Ui) {
+
+        let mut need_to_update =
+            add_slider_row(true, "Playback speed:", ui, &mut self.ui_state.playback_speed, &mut self.ui_state_drag.playback_speed, 0.1..=5.0, 0.1)
+            | false;    // TODO: add more sliders
+
         ui.horizontal(|ui| {
             if ui.button("Play").clicked() {
                 self.ui_state.playing = true;
             }
             if ui.button("Pause").clicked() {
+                println!("Pause clicked");
                 self.ui_state.playing = false;
             }
             if ui.button("Stop").clicked() {
                 self.ui_state.playing = false;
-                self.ui_state.current_frame = 0;
+                need_to_update = true;
             }
         });
+        ui.end_row();
 
-
+        if need_to_update {
+            self.update_adder_params()
+        }
 
     }
 
@@ -100,6 +127,9 @@ impl PlayerState {
         mut handles: ResMut<Images>,
         mut commands: Commands,
     ) {
+        if !self.ui_state.playing {
+            return;
+        }
         let stream = match &mut self.player.input_stream {
             None => {
                 return;
@@ -214,6 +244,10 @@ impl PlayerState {
         mut handles: ResMut<Images>,
         mut commands: Commands,
     ) {
+        if !self.ui_state.playing {
+            return;
+        }
+
         let stream = match &mut self.player.input_stream {
             None => {
                 return;
@@ -345,8 +379,48 @@ impl PlayerState {
         ));
     }
 
+    fn update_adder_params(&mut self) {
+
+        self.player = AdderPlayer::new(&self.player.path_buf.as_ref().unwrap(), self.ui_state.playback_speed).unwrap();
+        self.ui_state.current_frame = 0;
+        self.ui_state.total_frames = 0;
+        self.ui_state.current_time = 0.0;
+        self.ui_state.total_time = 0.0;
+        // let ui_state = &mut self.ui_state;
+        // let ui_state_mem = &mut self.ui_state_mem;
+        // // First, check if the sliders have changed. If they have, don't do anything this frame.
+        // if ui_state.delta_t_ref_slider != ui_state_mem.delta_t_ref_slider {
+        //     ui_state_mem.delta_t_ref_slider = ui_state.delta_t_ref_slider;
+        //     return;
+        // }
+        // if ui_state.delta_t_max_mult_slider != ui_state_mem.delta_t_max_mult_slider {
+        //     ui_state_mem.delta_t_max_mult_slider = ui_state.delta_t_max_mult_slider;
+        //     return;
+        // }
+        // if ui_state.adder_tresh_slider != ui_state_mem.adder_tresh_slider {
+        //     ui_state_mem.adder_tresh_slider = ui_state.adder_tresh_slider;
+        //     return;
+        // }
+        // if ui_state.scale_slider != ui_state_mem.scale_slider {
+        //     ui_state_mem.scale_slider = ui_state.scale_slider;
+        //     return;
+        // }
+        //
+        // ui_state.delta_t_ref = ui_state.delta_t_ref_slider;
+        // ui_state.delta_t_max_mult = ui_state.delta_t_max_mult_slider;
+        // ui_state.adder_tresh = ui_state.adder_tresh_slider;
+        // ui_state.scale = ui_state.scale_slider;
+
+
+
+
+
+        // video.instantaneous_view_mode = self.ui_state.view_mode_radio_state;
+    }
+
+
     pub fn replace_player(&mut self, path_buf: &std::path::PathBuf) {
-        self.player = AdderPlayer::new(path_buf).unwrap();
+        self.player = AdderPlayer::new(path_buf, self.ui_state.playback_speed).unwrap();
         self.ui_info_state.source_name = RichText::from(path_buf.to_str().unwrap().to_string());
         self.ui_state.current_frame = 1;
 

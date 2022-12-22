@@ -24,10 +24,12 @@ pub struct ParamsUiState {
     pub scale: f64,
     pub scale_slider: f64,
     pub thread_count: usize,
+    pub thread_count_slider: usize,
     pub color: bool,
     pub view_mode_radio_state: InstantaneousViewMode,
     pub davis_mode_radio_state: DavisTranscoderMode,
     pub davis_output_fps: f64,
+    pub davis_output_fps_slider: f64,
     pub optimize_c: bool,
 }
 
@@ -44,10 +46,12 @@ impl Default for ParamsUiState {
             scale: 0.5,
             scale_slider: 0.5,
             thread_count: 4,
+            thread_count_slider: 4,
             color: true,
             view_mode_radio_state: InstantaneousViewMode::Intensity,
             davis_mode_radio_state: DavisTranscoderMode::RawDavis,
             davis_output_fps: 500.0,
+            davis_output_fps_slider: 500.0,
             optimize_c: true,
         }
     }
@@ -141,32 +145,34 @@ impl TranscoderState {
 
     pub fn update_adder_params(&mut self, mut commands: Commands) {
 
-            let ui_state = &mut self.ui_state;
-            let ui_state_mem = &mut self.ui_state_mem;
-            // First, check if the sliders have changed. If they have, don't do anything this frame.
-            if ui_state.delta_t_ref_slider != ui_state_mem.delta_t_ref_slider {
-                ui_state_mem.delta_t_ref_slider = ui_state.delta_t_ref_slider;
-                return;
-            }
-            if ui_state.delta_t_max_mult_slider != ui_state_mem.delta_t_max_mult_slider {
-                ui_state_mem.delta_t_max_mult_slider = ui_state.delta_t_max_mult_slider;
-                return;
-            }
-            if ui_state.adder_tresh_slider != ui_state_mem.adder_tresh_slider {
-                ui_state_mem.adder_tresh_slider = ui_state.adder_tresh_slider;
-                return;
-            }
-            if ui_state.scale_slider != ui_state_mem.scale_slider {
-                ui_state_mem.scale_slider = ui_state.scale_slider;
-                return;
-            }
+            // let ui_state = &mut self.ui_state;
+            // let ui_state_mem = &mut self.ui_state_mem;
+            // // First, check if the sliders have changed. If they have, don't do anything this frame.
+            // if ui_state.delta_t_ref_slider != ui_state_mem.delta_t_ref_slider {
+            //     ui_state_mem.delta_t_ref_slider = ui_state.delta_t_ref_slider;
+            //     return;
+            // }
+            // if ui_state.delta_t_max_mult_slider != ui_state_mem.delta_t_max_mult_slider {
+            //     ui_state_mem.delta_t_max_mult_slider = ui_state.delta_t_max_mult_slider;
+            //     return;
+            // }
+            // if ui_state.adder_tresh_slider != ui_state_mem.adder_tresh_slider {
+            //     ui_state_mem.adder_tresh_slider = ui_state.adder_tresh_slider;
+            //     return;
+            // }
+            // if ui_state.scale_slider != ui_state_mem.scale_slider {
+            //     ui_state_mem.scale_slider = ui_state.scale_slider;
+            //     return;
+            // }
+            //
+            // ui_state.delta_t_ref = ui_state.delta_t_ref_slider;
+            // ui_state.delta_t_max_mult = ui_state.delta_t_max_mult_slider;
+            // ui_state.adder_tresh = ui_state.adder_tresh_slider;
+            // ui_state.scale = ui_state.scale_slider;
 
-            ui_state.delta_t_ref = ui_state.delta_t_ref_slider;
-            ui_state.delta_t_max_mult = ui_state.delta_t_max_mult_slider;
-            ui_state.adder_tresh = ui_state.adder_tresh_slider;
-            ui_state.scale = ui_state.scale_slider;
 
 
+        // TODO: do conditionals on the sliders themselves
         let source: &mut dyn Source = {
 
             match &mut self.transcoder.framed_source {
@@ -302,24 +308,24 @@ fn side_panel_grid_contents(transcoder: &AdderTranscoder, ui: &mut Ui, ui_state:
         Some(_) => { false }
     };
     ui.add_enabled(enabled, egui::Label::new("Δt_ref:"));
-    slider_pm(enabled, ui, &mut ui_state.delta_t_ref_slider, 1.0..=dtr_max, 10.0);
+    slider_pm(enabled, ui, &mut ui_state.delta_t_ref, &mut ui_state.delta_t_ref_slider, 1.0..=dtr_max, 10.0);
     ui.end_row();
 
     ui.label("Δt_max multiplier:");
-    slider_pm(true, ui, &mut ui_state.delta_t_max_mult_slider, 2..=1000, 10);
+    slider_pm(true, ui, &mut ui_state.delta_t_max_mult, &mut ui_state.delta_t_max_mult_slider, 2..=1000, 10);
     ui.end_row();
 
     ui.label("ADΔER threshold:");
-    slider_pm(true, ui, &mut ui_state.adder_tresh_slider, 0.0..=255.0, 1.0);
+    slider_pm(true, ui, &mut ui_state.adder_tresh, &mut ui_state.adder_tresh_slider, 0.0..=255.0, 1.0);
     ui.end_row();
 
 
     ui.label("Thread count:");
-    slider_pm(true, ui, &mut ui_state.thread_count, 1..=(current_num_threads()-1).max(4), 1);
+    slider_pm(true, ui, &mut ui_state.thread_count, &mut ui_state.thread_count_slider, 1..=(current_num_threads()-1).max(4), 1);
     ui.end_row();
 
     ui.label("Video scale:");
-    slider_pm(enabled, ui, &mut ui_state.scale_slider, 0.01..=1.0, 0.1);
+    slider_pm(enabled, ui, &mut ui_state.scale, &mut ui_state.scale_slider, 0.01..=1.0, 0.1);
     ui.end_row();
 
 
@@ -347,7 +353,7 @@ fn side_panel_grid_contents(transcoder: &AdderTranscoder, ui: &mut Ui, ui_state:
     ui.end_row();
 
     ui.label("DAVIS deblurred FPS:");
-    slider_pm(!enabled, ui, &mut ui_state.davis_output_fps, 1.0..=10000.0, 50.0);
+    slider_pm(!enabled, ui, &mut ui_state.davis_output_fps, &mut ui_state.davis_output_fps_slider, 1.0..=10000.0, 50.0);
     ui.end_row();
 
     ui.label("Optimize:");
