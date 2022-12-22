@@ -151,6 +151,31 @@ impl PlayerState {
         let mut need_to_update =
             add_slider_row(true, "Playback speed:", ui, &mut self.ui_sliders.playback_speed, &mut self.ui_sliders_drag.playback_speed, 0.1..=15.0, 0.1);
 
+        ui.add_enabled(true, egui::Label::new("Playback controls:"));
+        ui.horizontal(|ui| {
+            if self.ui_state.playing {
+                if ui.button("⏸").clicked() {
+                    println!("Pause clicked");
+                    self.ui_state.playing = false;
+                }
+            } else {
+                if ui.button("▶").clicked() {
+                    self.ui_state.playing = true;
+                }
+            }
+            // TODO: remove this?
+            if ui.button("⏹").clicked() {
+                self.ui_state.playing = false;
+                need_to_update = true;
+            }
+
+            if ui.button("⏮").clicked() {
+                self.ui_state.playing = true;
+                need_to_update = true;
+            }
+        });
+        ui.end_row();
+
         // TODO: decoding is single-threaded for now
         add_slider_row(false, "Thread count:", ui, &mut self.ui_sliders.thread_count, &mut self.ui_sliders_drag.thread_count, 1..=(current_num_threads()-1).max(4), 1);
         need_to_update |= add_checkbox_row(true, "Loop:", "Loop playback?", ui, &mut self.ui_state.looping);    // TODO: add more sliders
@@ -170,22 +195,7 @@ impl PlayerState {
                                         ],
                                         ui, &mut self.ui_state.reconstruction_method);
 
-        ui.horizontal(|ui| {
-            if ui.button("Play").clicked() {
-                self.ui_state.playing = true;
-            }
-            if ui.button("Pause").clicked() {
-                println!("Pause clicked");
-                self.ui_state.playing = false;
-            }
 
-            // TODO: remove this?
-            if ui.button("Stop").clicked() {
-                self.ui_state.playing = false;
-                need_to_update = true;
-            }
-        });
-        ui.end_row();
 
         if need_to_update {
             self.reset_update_adder_params()
