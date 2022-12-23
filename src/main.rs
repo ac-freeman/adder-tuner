@@ -1,5 +1,6 @@
 mod transcoder;
 mod player;
+mod utils;
 
 
 use std::ops::{Deref, RangeInclusive};
@@ -15,7 +16,7 @@ use crate::transcoder::ui::{ParamsUiState, InfoUiState, UiStateMemory, Transcode
 
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 // use egui_dock::egui as dock_egui;
-use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, Response, RichText, Rounding, Stroke, Ui, Widget, WidgetText};
+use bevy_egui::egui::{Color32, emath, epaint, global_dark_light_mode_switch, Response, RichText, Rounding, Slider, Stroke, Ui, Widget, WidgetText};
 
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -45,6 +46,7 @@ pub struct MainUiState {
 use rayon::current_num_threads;
 use crate::transcoder::adder;
 use crate::transcoder::adder::{AdderTranscoder, replace_adder_transcoder};
+use crate::utils::slider::NotchedSlider;
 
 /// This example demonstrates the following functionality and use-cases of bevy_egui:
 /// - rendering loaded assets;
@@ -335,7 +337,7 @@ fn file_drop(
 
 
 /// A slider with +/- buttons. Returns true if the value was changed.
-fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, ui: &mut Ui, instant_value: &mut Num, drag_value: &mut Num, range: RangeInclusive<Num>, interval: Num) -> bool {
+fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, logarithmic: bool, ui: &mut Ui, instant_value: &mut Num, drag_value: &mut Num, range: RangeInclusive<Num>, notches: Vec<Num>, interval: Num) -> bool {
     let start_value = *instant_value;
     ui.add_enabled_ui(enabled, |ui| {
         ui.horizontal(|ui| {
@@ -343,9 +345,12 @@ fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, ui: &mut Ui, instant_value
                 instant_value.decrement(range.start(), &interval);
                 *drag_value = *instant_value;
             }
-            if ui.add(egui::Slider::new(drag_value, range.clone())).drag_released() {
+            let slider = ui.add(NotchedSlider::new(drag_value, range.clone(), notches).logarithmic(logarithmic));
+            if slider.drag_released() {
                 *instant_value = *drag_value;
             }
+            Slider::new()
+
             if ui.button("+").clicked() {
                 instant_value.increment(range.end(), &interval);
                 *drag_value = *instant_value;
@@ -357,9 +362,9 @@ fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, ui: &mut Ui, instant_value
 
 }
 
-fn add_slider_row<Num: emath::Numeric + Pm>(enabled: bool, label: impl Into<WidgetText>, ui: &mut Ui, instant_value: &mut Num, drag_value: &mut Num, range: RangeInclusive<Num>, interval: Num) -> bool {
+fn add_slider_row<Num: emath::Numeric + Pm>(enabled: bool, logarithmic: bool, label: impl Into<WidgetText>, ui: &mut Ui, instant_value: &mut Num, drag_value: &mut Num, range: RangeInclusive<Num>, notches: Vec<Num>, interval: Num) -> bool {
     ui.add_enabled(enabled, egui::Label::new(label));
-    let ret = slider_pm(enabled, ui, instant_value, drag_value, range, interval);
+    let ret = slider_pm(enabled, logarithmic, ui, instant_value, drag_value, range, notches,interval);
     ui.end_row();
     ret
 }
