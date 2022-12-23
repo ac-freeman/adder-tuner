@@ -349,7 +349,6 @@ fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, logarithmic: bool, ui: &mu
             if slider.drag_released() {
                 *instant_value = *drag_value;
             }
-            Slider::new()
 
             if ui.button("+").clicked() {
                 instant_value.increment(range.end(), &interval);

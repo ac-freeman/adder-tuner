@@ -500,10 +500,33 @@ impl<'a> NotchedSlider<'a> {
             let position = self.pointer_position(pointer_position_2d);
             let new_value = if self.smart_aim {
                 let aim_radius = ui.input().aim_radius();
-                emath::smart_aim::best_in_range_f64(
+                let value = emath::smart_aim::best_in_range_f64(
                     self.value_from_position(position - aim_radius, position_range.clone()),
                     self.value_from_position(position + aim_radius, position_range.clone()),
-                )
+                );
+                if self.notches.is_empty() {
+                    value
+                } else {
+                    // let snap_radius = (self.range.end() - self.range.start()) / 10.0;
+                    let snap_radius = 0.1;
+                    // Snap to closest notch
+                    let mut closest_notch = 0.0;
+                    let norm_value = normalized_from_value(value, self.range.clone(), &self.spec);
+                    let mut closest_distance = (norm_value - closest_notch).abs();
+                    for notch in self.notches.iter().copied().chain(Some(*self.range.end())) {
+                        let notch_norm_value = normalized_from_value(notch, self.range.clone(), &self.spec);
+                        let distance = (norm_value - notch_norm_value).abs();
+                        if distance < closest_distance {
+                            closest_notch = notch;
+                            closest_distance = distance;
+                        }
+                    }
+                    if closest_distance < snap_radius {
+                        closest_notch
+                    } else {
+                        value
+                    }
+                }
             } else {
                 self.value_from_position(position, position_range.clone())
             };
