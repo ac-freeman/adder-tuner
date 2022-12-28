@@ -515,39 +515,7 @@ impl PlayerState {
             }
         };
 
-
         self.player = AdderPlayer::new(path_buf, self.ui_sliders.playback_speed, self.ui_state.view_mode).unwrap();
-
-        // let ui_state = &mut self.ui_state;
-        // let ui_state_mem = &mut self.ui_state_mem;
-        // // First, check if the sliders have changed. If they have, don't do anything this frame.
-        // if ui_state.delta_t_ref_slider != ui_state_mem.delta_t_ref_slider {
-        //     ui_state_mem.delta_t_ref_slider = ui_state.delta_t_ref_slider;
-        //     return;
-        // }
-        // if ui_state.delta_t_max_mult_slider != ui_state_mem.delta_t_max_mult_slider {
-        //     ui_state_mem.delta_t_max_mult_slider = ui_state.delta_t_max_mult_slider;
-        //     return;
-        // }
-        // if ui_state.adder_tresh_slider != ui_state_mem.adder_tresh_slider {
-        //     ui_state_mem.adder_tresh_slider = ui_state.adder_tresh_slider;
-        //     return;
-        // }
-        // if ui_state.scale_slider != ui_state_mem.scale_slider {
-        //     ui_state_mem.scale_slider = ui_state.scale_slider;
-        //     return;
-        // }
-        //
-        // ui_state.delta_t_ref = ui_state.delta_t_ref_slider;
-        // ui_state.delta_t_max_mult = ui_state.delta_t_max_mult_slider;
-        // ui_state.adder_tresh = ui_state.adder_tresh_slider;
-        // ui_state.scale = ui_state.scale_slider;
-
-
-
-
-
-        // video.instantaneous_view_mode = self.ui_state.view_mode_radio_state;
     }
 
 
