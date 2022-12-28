@@ -51,35 +51,8 @@ impl AdderPlayer {
                         stream.decode_header().expect("Invalid header");
 
                         let mut reconstructed_frame_rate = (stream.tps / stream.ref_interval) as f64;
-                        println!("reconstructed_frame_rate: {}", reconstructed_frame_rate);
 
-                        // If framed video source, with special scheme, don't want to adjust the
-                        // recon frame rate, just the playback frame rate
-                        // if stream.codec_version > 0
-                        //     && match stream.source_camera {
-                        //     SourceCamera::FramedU8 => true,
-                        //     SourceCamera::FramedU16 => true,
-                        //     SourceCamera::FramedU32 => true,
-                        //     SourceCamera::FramedU64 => true,
-                        //     SourceCamera::FramedF32 => true,
-                        //     SourceCamera::FramedF64 => true,
-                        //     SourceCamera::Dvs => false,
-                        //     SourceCamera::DavisU8 => false, // TODO: switch statement on the transcode MODE (frame-perfect or continuous), not just the source
-                        //     SourceCamera::Atis => false,
-                        //     SourceCamera::Asint => false,
-                        // } {
-                        //     // For instantaneous reconstruction, make sure the frame rate matches the source video rate
-                        //     assert_eq!(
-                        //         stream.tps / stream.ref_interval,
-                        //         reconstructed_frame_rate as u32
-                        //     );
-                        // }
-                        // else {
-                            reconstructed_frame_rate = reconstructed_frame_rate / playback_speed as f64;
-                            println!("NEW reconstructed_frame_rate: {}", reconstructed_frame_rate);
-                        // }
-
-
+                        reconstructed_frame_rate = reconstructed_frame_rate / playback_speed as f64;
 
                         let framer_builder: FramerBuilder = FramerBuilder::new(
                             stream.height.into(),
@@ -101,7 +74,6 @@ impl AdderPlayer {
                         let mut display_mat = Mat::default();
                         match stream.channels {
                             1 => {
-                                println!("1 channel!");
                                 create_continuous(
                                     stream.height as i32,
                                     stream.width as i32,
@@ -111,7 +83,6 @@ impl AdderPlayer {
                                     .unwrap();
                             }
                             3 => {
-                                println!("3 channel!");
                                 create_continuous(
                                     stream.height as i32,
                                     stream.width as i32,
@@ -125,7 +96,6 @@ impl AdderPlayer {
                             }
                         }
 
-                        println!("Creating adder player");
                         Ok(AdderPlayer {
                             framer_builder: Some(framer_builder),
                             frame_sequence: Some(frame_sequence),

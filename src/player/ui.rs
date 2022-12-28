@@ -151,6 +151,17 @@ impl PlayerState {
         let mut need_to_update =
             add_slider_row(true, true,"Playback speed:", ui, &mut self.ui_sliders.playback_speed, &mut self.ui_sliders_drag.playback_speed, 0.1..=15.0, vec![1.0, 2.0, 5.0, 10.0],0.1);
 
+        match &self.player.input_stream {
+            None => {}
+            Some(stream) => {
+                let duration = Duration::from_nanos(((self.player.current_t_ticks as f64 / stream.tps as f64) * 1.0e9) as u64);
+                ui.add_enabled(true, egui::Label::new("Current time:"));
+                ui.add_enabled(true, egui::Label::new(to_string(duration)));
+                ui.end_row();
+            }
+        }
+
+
         ui.add_enabled(true, egui::Label::new("Playback controls:"));
         ui.horizontal(|ui| {
             if self.ui_state.playing {
@@ -417,8 +428,6 @@ impl PlayerState {
             }
             frame_sequence.frames_written += 1;
             self.player.current_t_ticks += frame_sequence.tpf;
-            let duration = Duration::from_nanos(((self.player.current_t_ticks as f64 / stream.tps as f64) * 1.0e9) as u64);
-            println!("duration {:?}", to_string(duration));
 
             let mut image_mat_bgra = Mat::default();
             imgproc::cvt_color(display_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
@@ -456,7 +465,6 @@ impl PlayerState {
                     }
                 }
                 Err(_e) => {
-                    println!("restarting");
                     stream.set_input_stream_position(stream.header_size as u64).unwrap();
                     self.player.frame_sequence = Some(self.player.framer_builder.clone().unwrap().finish());
                     if !self.ui_state.looping {
