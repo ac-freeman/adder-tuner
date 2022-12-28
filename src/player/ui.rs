@@ -166,7 +166,6 @@ impl PlayerState {
         ui.horizontal(|ui| {
             if self.ui_state.playing {
                 if ui.button("⏸").clicked() {
-                    println!("Pause clicked");
                     self.ui_state.playing = false;
                 }
             } else {
@@ -285,23 +284,9 @@ impl PlayerState {
         let display_mat = &mut self.player.display_mat;
 
         loop {
-            // if event_count % divisor == 0 {
-            //     write!(
-            //         handle,
-            //         "\rPlaying back ADΔER file...{}%",
-            //         (event_count * 100) / num_events as u64
-            //     )?;
-            //     handle.flush().unwrap();
-            // }
             if self.player.current_t_ticks as u128 > (self.ui_state.current_frame as u128 * frame_length as u128) {
-                println!("Frame {}", self.ui_state.current_frame);
                 self.ui_state.current_frame += 1;
                 break
-                // let wait_time = max(
-                //     ((1000.0 / args.playback_fps) as u128)
-                //         .saturating_sub((Instant::now() - last_frame_displayed_ts).as_millis()),
-                //     1,
-                // ) as i32;
             }
 
             match stream.decode_event() {
