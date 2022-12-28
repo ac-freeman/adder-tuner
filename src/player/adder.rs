@@ -5,9 +5,12 @@ use adder_codec_rs::{Codec, DeltaT, SourceCamera};
 use adder_codec_rs::framer::event_framer::{Framer, FramerBuilder, FrameSequence};
 use adder_codec_rs::framer::event_framer::FramerMode::INSTANTANEOUS;
 use adder_codec_rs::raw::raw_stream::RawStream;
+use adder_codec_rs::transcoder::source::video::FramedViewMode;
 use bevy::prelude::Image;
 use opencv::core::{create_continuous, CV_64F, CV_64FC3, CV_8UC1, CV_8UC3, Mat};
 use crate::player::ui::PlayerUiState;
+
+
 
 #[derive(Default)]
 pub struct AdderPlayer {
@@ -34,7 +37,7 @@ impl fmt::Display for AdderPlayerError {
 impl Error for AdderPlayerError {}
 
 impl AdderPlayer {
-    pub(crate) fn new(path_buf: &PathBuf, playback_speed: f32) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(path_buf: &PathBuf, playback_speed: f32, view_mode: FramedViewMode) -> Result<Self, Box<dyn Error>> {
         match path_buf.extension() {
             None => {
                 Err(Box::new(AdderPlayerError("Invalid file type".into())))
@@ -61,8 +64,9 @@ impl AdderPlayer {
                             260,
                         )
                             .codec_version(stream.codec_version)
-                            .time_parameters(stream.tps, stream.ref_interval, reconstructed_frame_rate)
+                            .time_parameters(stream.tps, stream.ref_interval, stream.delta_t_max, reconstructed_frame_rate)
                             .mode(INSTANTANEOUS)
+                            .view_mode(view_mode)
                             .source(stream.get_source_type(), stream.source_camera);
 
                         let mut frame_sequence: FrameSequence<u8> = framer_builder

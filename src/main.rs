@@ -6,7 +6,6 @@ mod utils;
 use std::ops::{Deref, RangeInclusive};
 use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
-use adder_codec_rs::transcoder::source::video::InstantaneousViewMode;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
@@ -378,15 +377,13 @@ fn add_checkbox_row(enabled: bool, label_1: impl Into<WidgetText>, label_2: impl
 fn add_radio_row<'a, Value: PartialEq + Clone>(enabled: bool, label: impl Into<WidgetText>, options: Vec<(impl Into<WidgetText> + Clone, Value)>, ui: &mut Ui, radio_state: &'a mut Value) -> bool {
     ui.label(label);
     let mut ret = false;
-    ui.horizontal(|ui| {
-        for mut option in options {
-            ret |= ui.radio_value(radio_state, option.1.clone(), option.0.clone()).changed();
-        }
-
-        // ui.radio_value(&mut radio_state, InstantaneousViewMode::Intensity, "Intensity");
-        // ui.radio_value(&mut radio_state, InstantaneousViewMode::D, "D");
-        // ui.radio_value(&mut radio_state, InstantaneousViewMode::DeltaT, "Δt");
-    });
+    ui.add_enabled_ui(enabled, (|ui| {
+        ui.horizontal(|ui| {
+            for mut option in options {
+                ret |= ui.radio_value(radio_state, option.1.clone(), option.0.clone()).changed();
+            }
+        });
+    }));
     ui.end_row();
     ret
 }

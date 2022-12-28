@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
-use adder_codec_rs::transcoder::source::video::{InstantaneousViewMode, Source, SourceError};
+use adder_codec_rs::transcoder::source::video::{FramedViewMode, Source, SourceError};
 use bevy::ecs::system::Resource;
 use bevy::prelude::{Assets, Commands, Image, Res, ResMut, Time};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
@@ -26,7 +26,7 @@ pub struct ParamsUiState {
     pub thread_count: usize,
     pub thread_count_slider: usize,
     pub color: bool,
-    pub view_mode_radio_state: InstantaneousViewMode,
+    pub view_mode_radio_state: FramedViewMode,
     pub davis_mode_radio_state: DavisTranscoderMode,
     pub davis_output_fps: f64,
     pub davis_output_fps_slider: f64,
@@ -48,7 +48,7 @@ impl Default for ParamsUiState {
             thread_count: 4,
             thread_count_slider: 4,
             color: true,
-            view_mode_radio_state: InstantaneousViewMode::Intensity,
+            view_mode_radio_state: FramedViewMode::Intensity,
             davis_mode_radio_state: DavisTranscoderMode::RawDavis,
             davis_output_fps: 500.0,
             davis_output_fps_slider: 500.0,
@@ -81,7 +81,7 @@ pub struct InfoUiState {
     pub events_ppc_total: f64,
     pub events_total: u64,
     pub source_name: RichText,
-    pub view_mode_radio_state: InstantaneousViewMode,   // TODO: Move to different struct
+    pub view_mode_radio_state: FramedViewMode,   // TODO: Move to different struct
 }
 
 impl Default for InfoUiState {
@@ -92,7 +92,7 @@ impl Default for InfoUiState {
             events_ppc_total: 0.0,
             events_total: 0,
             source_name: RichText::new("No file selected yet"),
-            view_mode_radio_state: InstantaneousViewMode::Intensity,
+            view_mode_radio_state: FramedViewMode::Intensity,
         }
     }
 }
@@ -349,9 +349,9 @@ fn side_panel_grid_contents(transcoder: &AdderTranscoder, ui: &mut Ui, ui_state:
 
     ui.label("View mode:");
     ui.horizontal(|ui| {
-        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Intensity, "Intensity");
-        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::D, "D");
-        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::DeltaT, "Δt");
+        ui.radio_value(&mut ui_state.view_mode_radio_state, FramedViewMode::Intensity, "Intensity");
+        ui.radio_value(&mut ui_state.view_mode_radio_state, FramedViewMode::D, "D");
+        ui.radio_value(&mut ui_state.view_mode_radio_state, FramedViewMode::DeltaT, "Δt");
     });
     ui.end_row();
 

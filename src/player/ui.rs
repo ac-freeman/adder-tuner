@@ -5,7 +5,7 @@ use adder_codec_rs::{Codec, SourceCamera};
 use adder_codec_rs::framer::event_framer::Framer;
 use adder_codec_rs::framer::scale_intensity::event_to_intensity;
 use adder_codec_rs::raw::raw_stream::{RawStream, StreamError};
-use adder_codec_rs::transcoder::source::video::InstantaneousViewMode;
+use adder_codec_rs::transcoder::source::video::FramedViewMode;
 use bevy::asset::Assets;
 use bevy::prelude::{Commands, Image, Res, ResMut};
 use bevy::time::Time;
@@ -45,7 +45,7 @@ enum ReconstructionMethod {
 pub struct PlayerUiState {
     pub(crate) playing: bool,
     pub(crate) looping: bool,
-    pub(crate) view_mode: InstantaneousViewMode,
+    pub(crate) view_mode: FramedViewMode,
     reconstruction_method: ReconstructionMethod,
     pub(crate) current_frame: u32,
     pub(crate) total_frames: u32,
@@ -58,7 +58,7 @@ impl Default for PlayerUiState {
         Self {
             playing: true,
             looping: true,
-            view_mode: InstantaneousViewMode::Intensity,
+            view_mode: FramedViewMode::Intensity,
             reconstruction_method: ReconstructionMethod::Accurate,
             current_frame: 0,
             total_frames: 0,
@@ -191,11 +191,11 @@ impl PlayerState {
         need_to_update |= add_checkbox_row(true, "Loop:", "Loop playback?", ui, &mut self.ui_state.looping);    // TODO: add more sliders
 
         // TODO
-        need_to_update |= add_radio_row(false, "View mode:",
+        need_to_update |= add_radio_row(true, "View mode:",
                                         vec![
-                                            ("Intensity", InstantaneousViewMode::Intensity,),
-                                            ("D", InstantaneousViewMode::D,),
-                                            ("Δt", InstantaneousViewMode::DeltaT,)
+                                            ("Intensity", FramedViewMode::Intensity,),
+                                            ("D", FramedViewMode::D,),
+                                            ("Δt", FramedViewMode::DeltaT,)
                                         ],
                                         ui, &mut self.ui_state.view_mode);
         need_to_update |= add_radio_row(true, "Reconstruction method:",
@@ -516,7 +516,7 @@ impl PlayerState {
         };
 
 
-        self.player = AdderPlayer::new(path_buf, self.ui_sliders.playback_speed).unwrap();
+        self.player = AdderPlayer::new(path_buf, self.ui_sliders.playback_speed, self.ui_state.view_mode).unwrap();
 
         // let ui_state = &mut self.ui_state;
         // let ui_state_mem = &mut self.ui_state_mem;
@@ -552,7 +552,7 @@ impl PlayerState {
 
 
     pub fn replace_player(&mut self, path_buf: &std::path::PathBuf) {
-        self.player = AdderPlayer::new(path_buf, self.ui_sliders.playback_speed).unwrap();
+        self.player = AdderPlayer::new(path_buf, self.ui_sliders.playback_speed, self.ui_state.view_mode).unwrap();
         self.ui_info_state.source_name = RichText::from(path_buf.to_str().unwrap().to_string());
         self.ui_state.current_frame = 1;
 
