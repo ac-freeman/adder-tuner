@@ -20,8 +20,8 @@ use rayon::current_num_threads;
 
 #[derive(PartialEq)]
 pub struct PlayerUiSliders {
-    pub(crate) playback_speed: f32,
-    pub(crate) thread_count: usize,
+    playback_speed: f32,
+    thread_count: usize,
 }
 
 impl Default for PlayerUiSliders {
@@ -40,14 +40,14 @@ enum ReconstructionMethod {
 }
 
 pub struct PlayerUiState {
-    pub(crate) playing: bool,
-    pub(crate) looping: bool,
-    pub(crate) view_mode: FramedViewMode,
+    playing: bool,
+    looping: bool,
+    view_mode: FramedViewMode,
     reconstruction_method: ReconstructionMethod,
-    pub(crate) current_frame: u32,
-    pub(crate) total_frames: u32,
-    pub(crate) current_time: f32,
-    pub(crate) total_time: f32,
+    current_frame: u32,
+    total_frames: u32,
+    current_time: f32,
+    total_time: f32,
 }
 
 impl Default for PlayerUiState {
@@ -66,11 +66,11 @@ impl Default for PlayerUiState {
 }
 
 pub struct InfoUiState {
-    pub events_per_sec: f64,
-    pub events_ppc_per_sec: f64,
-    pub events_ppc_total: f64,
-    pub events_total: u64,
-    pub source_name: RichText,
+    events_per_sec: f64,
+    events_ppc_per_sec: f64,
+    events_ppc_total: f64,
+    events_total: u64,
+    source_name: RichText,
 }
 
 impl Default for InfoUiState {
@@ -96,13 +96,11 @@ impl InfoUiState {
 
 #[derive(Resource, Default)]
 pub struct PlayerState {
-    pub(crate) player: AdderPlayer,
-    pub ui_state: PlayerUiState,
-    pub ui_sliders: PlayerUiSliders,
-    pub ui_sliders_drag: PlayerUiSliders,
-    pub ui_info_state: InfoUiState,
-    // pub(crate) ui_state_mem: UiStateMemory,
-    // pub ui_info_state: InfoUiState,
+    player: AdderPlayer,
+    ui_state: PlayerUiState,
+    ui_sliders: PlayerUiSliders,
+    ui_sliders_drag: PlayerUiSliders,
+    ui_info_state: InfoUiState,
 }
 
 impl PlayerState {
