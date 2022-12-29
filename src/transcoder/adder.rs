@@ -2,27 +2,27 @@ use std::error::Error;
 
 use std::fmt;
 use std::path::PathBuf;
-use bevy::prelude::{Commands, Image, ResMut, Resource};
+use bevy::prelude::{Commands, Image, ResMut};
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::davis_source::DavisSource;
 use adder_codec_rs::{SourceCamera};
 use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
-use adder_codec_rs::transcoder::source::video::{Source, SourceError};
+
 use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+
 use adder_codec_rs::davis_edi_rs::util::reconstructor::Reconstructor;
 use adder_codec_rs::aedat::base::ioheader_generated::Compression;
 
 use bevy_egui::EguiContext;
 use crate::{Images,};
-use opencv::core::{Mat};
 
-use opencv::{imgproc, prelude::*, Result};
+
+use opencv::{prelude::*, Result};
 use bevy::{
     prelude::*,
 };
 use bevy_egui::egui::{Color32, RichText};
-use crate::transcoder::ui::{InfoUiState, ParamsUiState, TranscoderState, UiStateMemory};
+use crate::transcoder::ui::{ParamsUiState, TranscoderState};
 
 
 #[derive(Default)]
@@ -125,10 +125,10 @@ impl AdderTranscoder {
                             true,
                         ));
 
-                        let mut davis_source = DavisSource::new(
+                        let davis_source = DavisSource::new(
                             reconstructor,
                             None,   // TODO
-                            (1000000) as u32, // TODO
+                            1000000_u32, // TODO
                             1000000.0 / ui_state.davis_output_fps,
                             (1000000.0 * ui_state.delta_t_max_mult as f32) as u32, // TODO
                             false,
@@ -160,8 +160,8 @@ pub(crate) fn update_adder_params(
     _images: ResMut<Assets<Image>>,
     _handles: ResMut<Images>,
     _egui_ctx: ResMut<EguiContext>,
-    mut transcoder_state: ResMut<TranscoderState>,
-    mut commands: Commands,
+    _transcoder_state: ResMut<TranscoderState>,
+    _commands: Commands,
     ) {
 
 }
@@ -176,7 +176,7 @@ pub(crate) fn update_adder_params(
 //     transcoder_state.consume_source(images, handles, commands);
 // }
 
-pub(crate) fn replace_adder_transcoder(commands: &mut Commands,
+pub(crate) fn replace_adder_transcoder(_commands: &mut Commands,
                                        transcoder_state: &mut TranscoderState,
                                        path_buf: &std::path::PathBuf,
                                        current_frame: u32) {

@@ -3,19 +3,19 @@ mod player;
 mod utils;
 
 
-use std::ops::{Deref, RangeInclusive};
-use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
-use adder_codec_rs::transcoder::source::framed_source::FramedSource;
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use std::ops::{RangeInclusive};
+
+
+
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
 use crate::player::ui::PlayerState;
-use crate::transcoder::ui::{ParamsUiState, InfoUiState, UiStateMemory, TranscoderState};
+use crate::transcoder::ui::{TranscoderState};
 
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 // use egui_dock::egui as dock_egui;
-use bevy_egui::egui::{Color32, emath, epaint, global_dark_light_mode_switch, Response, RichText, Rounding, Slider, Stroke, Ui, Widget, WidgetText};
+use bevy_egui::egui::{emath, global_dark_light_mode_switch, Rounding, Ui, Widget, WidgetText};
 
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -42,9 +42,9 @@ pub struct MainUiState {
     view: Tabs,
 }
 
-use rayon::current_num_threads;
-use crate::transcoder::adder;
-use crate::transcoder::adder::{AdderTranscoder, replace_adder_transcoder};
+
+
+use crate::transcoder::adder::{replace_adder_transcoder};
 use crate::utils::slider::NotchedSlider;
 
 /// This example demonstrates the following functionality and use-cases of bevy_egui:
@@ -123,7 +123,7 @@ fn configure_menu_bar(
     mut egui_ctx: ResMut<EguiContext>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    let mut style = (*(*egui_ctx).ctx_mut().clone().style()).clone();
+    let style = (*(*egui_ctx).ctx_mut().clone().style()).clone();
 
     egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
         egui::menu::bar(ui, |ui| {
@@ -168,7 +168,7 @@ fn configure_menu_bar(
 }
 
 fn draw_ui(
-    mut commands: Commands,
+    commands: Commands,
     time: Res<Time>, // Time passed since last frame
     handles: Res<Images>,
     mut images: ResMut<Assets<Image>>,
@@ -255,8 +255,8 @@ fn draw_ui(
 fn update_adder_params(
     main_ui_state: Res<MainUiState>,
     mut transcoder_state: ResMut<TranscoderState>,
-    mut player_state: ResMut<PlayerState>,
-                       mut commands: Commands) {
+    _player_state: ResMut<PlayerState>,
+                       commands: Commands) {
     match main_ui_state.view {
         Tabs::Transcoder => {transcoder_state.update_adder_params(commands);}
         Tabs::Player => {
@@ -267,9 +267,9 @@ fn update_adder_params(
 }
 
 fn consume_source(
-    mut images: ResMut<Assets<Image>>,
-    mut handles: ResMut<Images>,
-    mut commands: Commands,
+    images: ResMut<Assets<Image>>,
+    handles: ResMut<Images>,
+    commands: Commands,
     main_ui_state: Res<MainUiState>,
     mut transcoder_state: ResMut<TranscoderState>,
     mut player_state: ResMut<PlayerState>,
@@ -290,7 +290,7 @@ struct MyDropTarget;
 
 ///https://bevy-cheatbook.github.io/input/dnd.html
 fn file_drop(
-    mut main_ui_state: ResMut<MainUiState>,
+    main_ui_state: ResMut<MainUiState>,
     mut player_state: ResMut<PlayerState>,
     mut transcoder_state: ResMut<TranscoderState>,
     mut commands: Commands,
@@ -356,7 +356,7 @@ fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, logarithmic: bool, ui: &mu
         });
     });
 
-    return *instant_value != start_value
+    *instant_value != start_value
 
 }
 
@@ -367,9 +367,9 @@ fn add_slider_row<Num: emath::Numeric + Pm>(enabled: bool, logarithmic: bool, la
     ret
 }
 
-fn add_checkbox_row(enabled: bool, label_1: impl Into<WidgetText>, label_2: impl Into<WidgetText>, ui: &mut Ui, mut checkbox_value: &mut bool) -> bool {
+fn add_checkbox_row(enabled: bool, label_1: impl Into<WidgetText>, label_2: impl Into<WidgetText>, ui: &mut Ui, checkbox_value: &mut bool) -> bool {
     ui.add_enabled(enabled, egui::Label::new(label_1));
-    let ret = ui.add_enabled(enabled, egui::Checkbox::new(&mut checkbox_value, label_2)).changed();
+    let ret = ui.add_enabled(enabled, egui::Checkbox::new(checkbox_value, label_2)).changed();
     ui.end_row();
     ret
 }
@@ -377,13 +377,13 @@ fn add_checkbox_row(enabled: bool, label_1: impl Into<WidgetText>, label_2: impl
 fn add_radio_row<'a, Value: PartialEq + Clone>(enabled: bool, label: impl Into<WidgetText>, options: Vec<(impl Into<WidgetText> + Clone, Value)>, ui: &mut Ui, radio_state: &'a mut Value) -> bool {
     ui.label(label);
     let mut ret = false;
-    ui.add_enabled_ui(enabled, (|ui| {
+    ui.add_enabled_ui(enabled, |ui| {
         ui.horizontal(|ui| {
-            for mut option in options {
+            for option in options {
                 ret |= ui.radio_value(radio_state, option.1.clone(), option.0.clone()).changed();
             }
         });
-    }));
+    });
     ui.end_row();
     ret
 }

@@ -618,7 +618,7 @@ impl<'a> NotchedSlider<'a> {
                 let notch_position_1d = self.position_from_value(*notch, position_range.clone());
                 let center = self.marker_center(notch_position_1d, &rail_rect);
                 ui.painter().add(epaint::CircleShape {
-                    center: center,
+                    center,
                     radius: 2.0,
                     fill: ui.visuals().widgets.noninteractive.bg_fill,
                     stroke: Stroke { width: 0.0, color: Default::default() },
@@ -968,6 +968,6 @@ fn logaritmic_zero_cutoff(min: f64, max: f64) -> f64 {
     };
 
     let cutoff = min_magnitude / (min_magnitude + max_magnitude);
-    assert!(0.0 <= cutoff && cutoff <= 1.0);
+    assert!((0.0..=1.0).contains(&cutoff));
     cutoff
 }

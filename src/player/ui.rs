@@ -1,10 +1,10 @@
-use std::io;
-use std::io::Write;
+
+
 use std::time::Duration;
 use adder_codec_rs::{Codec, SourceCamera};
 use adder_codec_rs::framer::event_framer::Framer;
 use adder_codec_rs::framer::scale_intensity::event_to_intensity;
-use adder_codec_rs::raw::raw_stream::{RawStream, StreamError};
+
 use adder_codec_rs::transcoder::source::video::FramedViewMode;
 use bevy::asset::Assets;
 use bevy::prelude::{Commands, Image, Res, ResMut};
@@ -12,14 +12,14 @@ use bevy::time::Time;
 use bevy_egui::egui::{RichText, Ui};
 use bevy::ecs::system::Resource;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy::utils::tracing::{enabled, event};
+
 use bevy_egui::egui;
-use opencv::core::{Mat, MatTrait, MatTraitConstManual, MatTraitManual};
+use opencv::core::{Mat, MatTraitConstManual, MatTraitManual};
 use opencv::imgproc;
 use rayon::current_num_threads;
-use crate::{add_checkbox_row, add_radio_row, add_slider_row, Images, slider_pm};
+use crate::{add_checkbox_row, add_radio_row, add_slider_row, Images};
 use crate::player::adder::AdderPlayer;
-use crate::Tabs::Player;
+
 
 #[derive(PartialEq)]
 pub struct PlayerUiSliders {
@@ -112,9 +112,9 @@ impl PlayerState {
     // Fill in the side panel with sliders for playback speed and buttons for play/pause/stop
     pub fn side_panel_ui(
         &mut self,
-        mut ui: &mut Ui,
+        ui: &mut Ui,
         mut commands: Commands,
-        images: &mut ResMut<Assets<Image>>,
+        _images: &mut ResMut<Assets<Image>>,
     ) {
         ui.horizontal(|ui|{
             ui.heading("ADΔER Parameters");
@@ -168,10 +168,8 @@ impl PlayerState {
                 if ui.button("⏸").clicked() {
                     self.ui_state.playing = false;
                 }
-            } else {
-                if ui.button("▶").clicked() {
-                    self.ui_state.playing = true;
-                }
+            } else if ui.button("▶").clicked() {
+                self.ui_state.playing = true;
             }
             // TODO: remove this?
             if ui.button("⏹").clicked() {
@@ -215,9 +213,9 @@ impl PlayerState {
 
     pub fn consume_source(
         &mut self,
-        mut images: ResMut<Assets<Image>>,
-        mut handles: ResMut<Images>,
-        mut commands: Commands,
+        images: ResMut<Assets<Image>>,
+        handles: ResMut<Images>,
+        commands: Commands,
     ) {
         if !self.ui_state.playing {
             return;
@@ -257,7 +255,7 @@ impl PlayerState {
         &mut self,
         mut images: ResMut<Assets<Image>>,
         mut handles: ResMut<Images>,
-        mut commands: Commands,
+        _commands: Commands,
     ) {
         if self.ui_state.current_frame == 0 {
             self.ui_state.current_frame = 1;    // TODO: temporary hack
@@ -272,7 +270,7 @@ impl PlayerState {
             Some(s) => { s }
         };
 
-        let frame_sequence = match &mut self.player.frame_sequence {
+        let _frame_sequence = match &mut self.player.frame_sequence {
             None => {
                 return;
             }
@@ -328,7 +326,7 @@ impl PlayerState {
                     //     *px = frame_intensity as u8;
                     // }
                 }
-                Err(e) => {
+                Err(_e) => {
                     match stream.set_input_stream_position(stream.header_size as u64) {
                         Ok(_) => {}
                         Err(ee) => {eprintln!("{}", ee)}
@@ -372,7 +370,7 @@ impl PlayerState {
         &mut self,
         mut images: ResMut<Assets<Image>>,
         mut handles: ResMut<Images>,
-        mut commands: Commands,
+        _commands: Commands,
     ) {
         let stream = match &mut self.player.input_stream {
             None => {
@@ -463,7 +461,7 @@ impl PlayerState {
 
     pub fn central_panel_ui(
         &mut self,
-        mut ui: &mut Ui,
+        ui: &mut Ui,
         time: Res<Time>
     ) {
 

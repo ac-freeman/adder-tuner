@@ -1,14 +1,14 @@
 use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
-use adder_codec_rs::{Codec, DeltaT, SourceCamera};
+use adder_codec_rs::{Codec, DeltaT};
 use adder_codec_rs::framer::event_framer::{Framer, FramerBuilder, FrameSequence};
 use adder_codec_rs::framer::event_framer::FramerMode::INSTANTANEOUS;
 use adder_codec_rs::raw::raw_stream::RawStream;
 use adder_codec_rs::transcoder::source::video::FramedViewMode;
 use bevy::prelude::Image;
-use opencv::core::{create_continuous, CV_64F, CV_64FC3, CV_8UC1, CV_8UC3, Mat};
-use crate::player::ui::PlayerUiState;
+use opencv::core::{create_continuous, CV_8UC1, CV_8UC3, Mat};
+
 
 
 
@@ -55,7 +55,7 @@ impl AdderPlayer {
 
                         let mut reconstructed_frame_rate = (stream.tps / stream.ref_interval) as f64;
 
-                        reconstructed_frame_rate = reconstructed_frame_rate / playback_speed as f64;
+                        reconstructed_frame_rate /= playback_speed as f64;
 
                         let framer_builder: FramerBuilder = FramerBuilder::new(
                             stream.height.into(),
@@ -69,7 +69,7 @@ impl AdderPlayer {
                             .view_mode(view_mode)
                             .source(stream.get_source_type(), stream.source_camera);
 
-                        let mut frame_sequence: FrameSequence<u8> = framer_builder
+                        let frame_sequence: FrameSequence<u8> = framer_builder
                             .clone()
                             .finish();
 

@@ -108,9 +108,9 @@ pub struct TranscoderState {
 impl TranscoderState {
     pub fn side_panel_ui(
         &mut self,
-        mut ui: &mut Ui,
+        ui: &mut Ui,
         mut commands: Commands,
-        images: &mut ResMut<Assets<Image>>,
+        _images: &mut ResMut<Assets<Image>>,
     ) {
         ui.horizontal(|ui|{
             ui.heading("ADΔER Parameters");
@@ -134,7 +134,7 @@ impl TranscoderState {
 
     pub fn central_panel_ui(
         &mut self,
-        mut ui: &mut Ui,
+        ui: &mut Ui,
         time: Res<Time>
     ) {
         ui.heading("Drag and drop your source file here (.mp4, .aedat4)");
@@ -234,7 +234,7 @@ impl TranscoderState {
         let video = source.get_video_mut();
         video.update_adder_thresh_pos(self.ui_state.adder_tresh as u8);
         video.update_adder_thresh_neg(self.ui_state.adder_tresh as u8);
-        video.update_delta_t_max(self.ui_state.delta_t_max_mult as u32 * video.get_ref_time());
+        video.update_delta_t_max(self.ui_state.delta_t_max_mult * video.get_ref_time());
         video.instantaneous_view_mode = self.ui_state.view_mode_radio_state;
     }
 
@@ -276,7 +276,7 @@ impl TranscoderState {
                 }
                 ui_info_state.events_ppc_total = ui_info_state.events_total as f64 / (source.get_video().width as f64 * source.get_video().height as f64 * source.get_video().channels as f64);
                 let source_fps = source.get_video().get_tps() as f64 / source.get_video().get_ref_time() as f64;
-                ui_info_state.events_per_sec = ui_info_state.events_per_sec  as f64 * source_fps;
+                ui_info_state.events_per_sec *= source_fps;
                 ui_info_state.events_ppc_per_sec = ui_info_state.events_per_sec / (source.get_video().width as f64 * source.get_video().height as f64 * source.get_video().channels as f64);
             }
             Err(SourceError::Open) => {
