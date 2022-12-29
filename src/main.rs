@@ -1,22 +1,46 @@
-mod adder;
-
-
+mod player;
+mod transcoder;
+mod utils;
 
 use std::ops::RangeInclusive;
-use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
-use adder_codec_rs::transcoder::source::framed_source::FramedSource;
-use adder_codec_rs::transcoder::source::video::InstantaneousViewMode;
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+
+use crate::player::ui::PlayerState;
+use crate::transcoder::ui::TranscoderState;
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
 
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
-use bevy_egui::egui::{Color32, emath, global_dark_light_mode_switch, RichText, Ui};
+// use egui_dock::egui as dock_egui;
+use bevy_egui::egui::{emath, global_dark_light_mode_switch, Rounding, Ui, Widget, WidgetText};
 
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
-use rayon::current_num_threads;
-use crate::adder::{AdderTranscoder, consume_source, update_adder_params};
+// use egui_dock::{NodeIndex, Tree};
+
+#[derive(Debug, EnumIter, PartialEq, Clone, Copy)]
+enum Tabs {
+    Transcoder,
+    Player,
+}
+
+impl Tabs {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Tabs::Transcoder => "Transcode",
+            Tabs::Player => "Play file",
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct MainUiState {
+    view: Tabs,
+}
+
+use crate::transcoder::adder::replace_adder_transcoder;
+use crate::utils::slider::NotchedSlider;
 
 /// This example demonstrates the following functionality and use-cases of bevy_egui:
 /// - rendering loaded assets;
@@ -26,11 +50,12 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .insert_resource(Msaa { samples: 4 })
-        .insert_resource(AdderTranscoder::default())
         .insert_resource(Images::default())
-        .init_resource::<ParamsUiState>()
-        .init_resource::<InfoUiState>()
-        .init_resource::<UiStateMemory>()
+        .insert_resource(MainUiState {
+            view: Tabs::Transcoder,
+        })
+        .init_resource::<TranscoderState>()
+        .init_resource::<PlayerState>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
                 title: "ADΔER Tuner".to_string(),
@@ -46,9 +71,9 @@ fn main() {
         // .add_plugin(FrameTimeDiagnosticsPlugin)
         // .add_plugin(EditorPlugin)
         .add_startup_system(configure_visuals)
-        .add_startup_system(configure_ui_state)
         .add_system(update_ui_scale_factor)
-        .add_system(ui_example)
+        .add_system(draw_ui)
+        .add_system(configure_menu_bar)
         .add_system(file_drop)
         .add_system(update_adder_params)
         .add_system(consume_source)
@@ -56,101 +81,15 @@ fn main() {
 }
 
 #[derive(Resource, Default)]
-struct Images {
+pub struct Images {
     image_view: Handle<Image>,
 }
 
-#[derive(Resource)]
-struct UiStateMemory {
-    delta_t_ref_slider: f32,
-    delta_t_max_mult_slider: u32,
-    adder_tresh_slider: f32,
-    scale_slider: f64,
-}
-impl Default for UiStateMemory {
-    fn default() -> Self {
-        UiStateMemory {
-            delta_t_ref_slider: 255.0,
-            delta_t_max_mult_slider: 120,
-            adder_tresh_slider: 10.0,
-            scale_slider: 0.5
-        }
-    }
-}
-
-#[derive(Resource)]
-struct ParamsUiState {
-    delta_t_ref: f32,
-    delta_t_ref_max: f32,
-    delta_t_max_mult: u32,
-    adder_tresh: f32,
-    delta_t_ref_slider: f32,
-    delta_t_max_mult_slider: u32,
-    adder_tresh_slider: f32,
-    scale: f64,
-    scale_slider: f64,
-    thread_count: usize,
-    color: bool,
-    view_mode_radio_state: InstantaneousViewMode,
-    davis_mode_radio_state: DavisTranscoderMode,
-    davis_output_fps: f64,
-    optimize_c: bool,
-}
-
-impl Default for ParamsUiState {
-    fn default() -> Self {
-        ParamsUiState {
-            delta_t_ref: 255.0,
-            delta_t_ref_max: 255.0,
-            delta_t_max_mult: 120,
-            adder_tresh: 10.0,
-            delta_t_ref_slider: 255.0,
-            delta_t_max_mult_slider: 120,
-            adder_tresh_slider: 10.0,
-            scale: 0.5,
-            scale_slider: 0.5,
-            thread_count: 4,
-            color: true,
-            view_mode_radio_state: InstantaneousViewMode::Intensity,
-            davis_mode_radio_state: DavisTranscoderMode::RawDavis,
-            davis_output_fps: 500.0,
-            optimize_c: true,
-        }
-    }
-}
-
-#[derive(Resource)]
-struct InfoUiState {
-    events_per_sec: f64,
-    events_ppc_per_sec: f64,
-    events_ppc_total: u64,
-    events_total: u64,
-    source_name: RichText,
-    view_mode_radio_state: InstantaneousViewMode,
-}
-
-impl Default for InfoUiState {
-    fn default() -> Self {
-        InfoUiState {
-            events_per_sec: 0.,
-            events_ppc_per_sec: 0.,
-            events_ppc_total: 0,
-            events_total: 0,
-            source_name: RichText::new("No file selected yet"),
-            view_mode_radio_state: InstantaneousViewMode::Intensity,
-        }
-    }
-}
-
 fn configure_visuals(mut egui_ctx: ResMut<EguiContext>) {
-    egui_ctx.ctx_mut().set_visuals(egui::Visuals {
+    egui_ctx.ctx_mut().set_visuals(bevy_egui::egui::Visuals {
         window_rounding: 5.0.into(),
         ..Default::default()
     });
-}
-
-fn configure_ui_state(mut ui_state: ResMut<ParamsUiState>) {
-    ui_state.color = true;
 }
 
 fn update_ui_scale_factor(
@@ -173,147 +112,181 @@ fn update_ui_scale_factor(
     }
 }
 
-fn ui_example(
-    mut commands: Commands,
+fn configure_menu_bar(
+    mut main_ui_state: ResMut<MainUiState>,
+    mut egui_ctx: ResMut<EguiContext>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let style = (*(*egui_ctx).ctx_mut().clone().style()).clone();
+
+    egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
+        egui::menu::bar(ui, |ui| {
+            global_dark_light_mode_switch(ui);
+
+            ui.style_mut().visuals.widgets.active.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.inactive.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.open.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.hovered.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.noninteractive.rounding = Rounding::same(0.0);
+            ui.style_mut().visuals.widgets.inactive.expansion = 3.0;
+            ui.style_mut().visuals.widgets.active.expansion = 3.0;
+            ui.style_mut().visuals.widgets.hovered.expansion = 3.0;
+            let default_inactive_stroke = ui.style_mut().visuals.widgets.inactive.fg_stroke;
+
+            let mut new_selection = main_ui_state.view;
+            for menu_item in Tabs::iter() {
+                let button = {
+                    if main_ui_state.view == menu_item {
+                        ui.style_mut().visuals.widgets.inactive.fg_stroke =
+                            ui.style_mut().visuals.widgets.active.fg_stroke;
+                        egui::Button::new(menu_item.as_str()).fill(style.visuals.window_fill)
+                    } else {
+                        ui.style_mut().visuals.widgets.inactive.fg_stroke = default_inactive_stroke;
+                        egui::Button::new(menu_item.as_str()).fill(style.visuals.faint_bg_color)
+                    }
+                };
+                let res = button.ui(ui);
+                if res.clicked() {
+                    new_selection = menu_item;
+                }
+            }
+
+            // Now that all the menu items have been drawn, set the selected item for when the next
+            // frame is drawn
+            if main_ui_state.view != new_selection {
+                // Clear the image vec
+                images.clear();
+                main_ui_state.view = new_selection;
+            }
+        });
+    });
+}
+
+fn draw_ui(
+    commands: Commands,
     time: Res<Time>, // Time passed since last frame
     handles: Res<Images>,
-    transcoder: Res<AdderTranscoder>,
-    images: ResMut<Assets<Image>>,
+    mut images: ResMut<Assets<Image>>,
     mut egui_ctx: ResMut<EguiContext>,
-    mut ui_state: ResMut<ParamsUiState>,
-    mut ui_info_state: ResMut<InfoUiState>,
+    mut transcoder_state: ResMut<TranscoderState>,
+    mut player_state: ResMut<PlayerState>,
+    main_ui_state: Res<MainUiState>,
 ) {
     egui::SidePanel::left("side_panel")
         .default_width(300.0)
-        .show(egui_ctx.ctx_mut(), |ui| {
-            ui.horizontal(|ui|{
-                ui.heading("ADΔER Parameters");
-                global_dark_light_mode_switch(ui);
-                if ui.add(egui::Button::new("Reset params")).clicked() {
-                    commands.insert_resource::<ParamsUiState>(Default::default());
-                }
-                if ui.add(egui::Button::new("Reset video")).clicked() {
-                    commands.insert_resource::<AdderTranscoder>(AdderTranscoder::default());
-                    commands.insert_resource::<InfoUiState>(InfoUiState::default());
-                    commands.insert_resource(Images::default());
-                }
-            });
-
-            egui::Grid::new("my_grid")
-                .num_columns(2)
-                .spacing([10.0, 4.0])
-                .striped(true)
-                .show(ui, |ui| {
-                    side_panel_grid_contents(transcoder, ui, &mut ui_state);
-                });
-
-
+        .show(egui_ctx.ctx_mut(), |ui| match main_ui_state.view {
+            Tabs::Transcoder => {
+                transcoder_state.side_panel_ui(ui, commands, &mut images);
+            }
+            Tabs::Player => {
+                player_state.side_panel_ui(ui, commands, &mut images);
+            }
         });
-
-    egui::TopBottomPanel::top("top_panel").show(egui_ctx.ctx_mut(), |ui| {
-        // The top panel is often a good place for a menu bar:
-        egui::menu::bar(ui, |ui| {
-            egui::menu::menu_button(ui, "File", |ui| {
-                if ui.button("Quit").clicked() {
-                    std::process::exit(0);
-                }
-            });
-        });
-    });
 
     let (image, texture_id) = match images.get(&handles.image_view) {
         // texture_id = Some(egui_ctx.add_image(handles.image_view.clone()));
-        None => { (None, None)}
-        Some(image) => {
-            (Some(image),Some(egui_ctx.add_image(handles.image_view.clone())))
-        }
+        None => (None, None),
+        Some(image) => (
+            Some(image),
+            Some(egui_ctx.add_image(handles.image_view.clone())),
+        ),
     };
 
-    egui::CentralPanel::default().show(egui_ctx.ctx_mut(), |ui| {
+    egui::CentralPanel::default().show(egui_ctx.clone().ctx_mut(), |ui| {
         egui::warn_if_debug_build(ui);
-        // ui.separator();
 
-        ui.heading("Drag and drop your source file here.");
-
-
-
-        ui.label(ui_info_state.source_name.clone());
-
-        ui.label(format!(
-            "{:.2} transcoded FPS\t\
-            {:.2} events per source sec\t\
-            {:.2} events PPC per source sec\t\
-            {:.0} events total\t\
-            {:.0} events PPC total
-            ",
-                1. / time.delta_seconds(),
-            ui_info_state.events_per_sec,
-            ui_info_state.events_ppc_per_sec,
-            ui_info_state.events_total,
-            ui_info_state.events_ppc_total
-        ));
-
-
-
-
-        match (image, texture_id) {
-            (Some(image), Some(texture_id)) => {
-                let avail_size = ui.available_size();
-                let size = match (image.texture_descriptor.size.width as f32, image.texture_descriptor.size.height as f32) {
-                    (a, b) if a/b > avail_size.x/avail_size.y => {
-                        /*
-                        The available space has a taller aspect ratio than the video
-                        Fill the available horizontal space.
-                         */
-                        bevy_egui::egui::Vec2 { x: avail_size.x, y: (avail_size.x/a) * b }
-                    }
-                    (a, b) => {
-                        /*
-                        The available space has a shorter aspect ratio than the video
-                        Fill the available vertical space.
-                         */
-                        bevy_egui::egui::Vec2 { x: (avail_size.y/b) * a, y: avail_size.y }
-                    }
-                };
-                ui.image(texture_id,  size);
+        match main_ui_state.view {
+            Tabs::Transcoder => {
+                transcoder_state.central_panel_ui(ui, time);
             }
-            _ => {}
+            Tabs::Player => {
+                player_state.central_panel_ui(ui, time);
+            }
         }
 
-
+        /*
+        Images in the central panel are common to both visualization tabs, so we can do this
+         here as the last step of drawing its UI
+        */
+        if let (Some(image), Some(texture_id)) = (image, texture_id) {
+            let avail_size = ui.available_size();
+            let size = match (
+                image.texture_descriptor.size.width as f32,
+                image.texture_descriptor.size.height as f32,
+            ) {
+                (a, b) if a / b > avail_size.x / avail_size.y => {
+                    /*
+                    The available space has a taller aspect ratio than the video
+                    Fill the available horizontal space.
+                     */
+                    bevy_egui::egui::Vec2 {
+                        x: avail_size.x,
+                        y: (avail_size.x / a) * b,
+                    }
+                }
+                (a, b) => {
+                    /*
+                    The available space has a shorter aspect ratio than the video
+                    Fill the available vertical space.
+                     */
+                    bevy_egui::egui::Vec2 {
+                        x: (avail_size.y / b) * a,
+                        y: avail_size.y,
+                    }
+                }
+            };
+            ui.image(texture_id, size);
+        }
     });
+}
 
-    // egui::Window::new("Window")
-    //     .vscroll(true)
-    //     .open(&mut ui_state.is_window_open)
-    //     .show(egui_ctx.ctx_mut(), |ui| {
-    //         ui.label("Windows can be moved by dragging them.");
-    //         ui.label("They are automatically sized based on contents.");
-    //         ui.label("You can turn on resizing and scrolling if you like.");
-    //         ui.label("You would normally chose either panels OR windows.");
-    //     });
+fn update_adder_params(
+    main_ui_state: Res<MainUiState>,
+    mut transcoder_state: ResMut<TranscoderState>,
+) {
+    match main_ui_state.view {
+        Tabs::Transcoder => {
+            transcoder_state.update_adder_params();
+        }
+        Tabs::Player => {
+            // player_state.update_adder_params(commands);
+        }
+    }
+}
+
+fn consume_source(
+    images: ResMut<Assets<Image>>,
+    handles: ResMut<Images>,
+    commands: Commands,
+    main_ui_state: Res<MainUiState>,
+    mut transcoder_state: ResMut<TranscoderState>,
+    mut player_state: ResMut<PlayerState>,
+) {
+    match main_ui_state.view {
+        Tabs::Transcoder => {
+            transcoder_state.consume_source(images, handles);
+        }
+        Tabs::Player => {
+            player_state.consume_source(images, handles, commands);
+        }
+    }
 }
 
 #[derive(Component, Default)]
 struct MyDropTarget;
 
-
 ///https://bevy-cheatbook.github.io/input/dnd.html
 fn file_drop(
-    mut ui_state: ResMut<ParamsUiState>,
-    mut ui_info_state: ResMut<InfoUiState>,
-    mut commands: Commands,
+    main_ui_state: ResMut<MainUiState>,
+    mut player_state: ResMut<PlayerState>,
+    mut transcoder_state: ResMut<TranscoderState>,
     mut dnd_evr: EventReader<FileDragAndDrop>,
     query_ui_droptarget: Query<&Interaction, With<MyDropTarget>>,
 ) {
     for ev in dnd_evr.iter() {
-        println!("{:?}", ev);
         if let FileDragAndDrop::DroppedFile { id, path_buf } = ev {
-            println!("Dropped file with path: {:?}", path_buf);
-
             if id.is_primary() {
                 // it was dropped over the main window
-
             }
 
             for interaction in query_ui_droptarget.iter() {
@@ -323,113 +296,120 @@ fn file_drop(
                 }
             }
 
-            replace_adder_transcoder(&mut commands, &mut ui_state, &mut ui_info_state, path_buf, 0);
+            match main_ui_state.view {
+                Tabs::Transcoder => {
+                    // TODO: refactor as struct func
+                    replace_adder_transcoder(
+                        &mut transcoder_state,
+                        Some(path_buf.clone()),
+                        None,
+                        0,
+                    ); // TODO!!
+                }
+                Tabs::Player => {
+                    player_state.replace_player(path_buf);
+                }
+            }
         }
     }
 }
 
-pub(crate) fn replace_adder_transcoder(commands: &mut Commands,
-                                       ui_state: &mut ResMut<ParamsUiState>,
-                                       mut ui_info_state: &mut ResMut<InfoUiState>,
-                                       path_buf: &std::path::PathBuf,
-                                       current_frame: u32) {
-    ui_info_state.events_per_sec = 0.0;
-    ui_info_state.events_ppc_total = 0;
-    ui_info_state.events_total = 0;
-    ui_info_state.events_ppc_per_sec = 0.0;
-    match AdderTranscoder::new(path_buf, ui_state, current_frame) {
-        Ok(transcoder) => {
-            commands.remove_resource::<AdderTranscoder>();
-            commands.insert_resource
-            (
-                transcoder
-            );
-            ui_info_state.source_name = RichText::new(path_buf.to_str().unwrap()).color(Color32::DARK_GREEN);
-
-        }
-        Err(e) => {
-            commands.remove_resource::<AdderTranscoder>();
-            commands.insert_resource
-            (
-                AdderTranscoder::default()
-            );
-            ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
-        }
-    };
-}
-
-fn side_panel_grid_contents(transcoder: Res<AdderTranscoder>, ui: &mut Ui, ui_state: &mut ResMut<ParamsUiState>) {
-    let dtr_max = ui_state.delta_t_ref_max;
-    let enabled = match transcoder.davis_source {
-        None => { true}
-        Some(_) => { false }
-    };
-    ui.add_enabled(enabled, egui::Label::new("Δt_ref:"));
-    slider_pm(enabled, ui, &mut ui_state.delta_t_ref_slider, 1.0..=dtr_max, 10.0);
-    ui.end_row();
-
-    ui.label("Δt_max multiplier:");
-    slider_pm(true, ui, &mut ui_state.delta_t_max_mult_slider, 2..=1000, 10);
-    ui.end_row();
-
-    ui.label("ADΔER threshold:");
-    slider_pm(true, ui, &mut ui_state.adder_tresh_slider, 0.0..=255.0, 1.0);
-    ui.end_row();
-
-
-    ui.label("Thread count:");
-    slider_pm(true, ui, &mut ui_state.thread_count, 1..=(current_num_threads()-1).max(4), 1);
-    ui.end_row();
-
-    ui.label("Video scale:");
-    slider_pm(enabled, ui, &mut ui_state.scale_slider, 0.01..=1.0, 0.1);
-    ui.end_row();
-
-
-    ui.label("Channels:");
-    ui.add_enabled(enabled, egui::Checkbox::new(&mut ui_state.color, "Color?"));
-    ui.end_row();
-
-
-    ui.label("View mode:");
-    ui.horizontal(|ui| {
-        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::Intensity, "Intensity");
-        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::D, "D");
-        ui.radio_value(&mut ui_state.view_mode_radio_state, InstantaneousViewMode::DeltaT, "Δt");
-    });
-    ui.end_row();
-
-    ui.label("DAVIS mode:");
-    ui.add_enabled_ui(!enabled, |ui| {
-        ui.horizontal(|ui| {
-            ui.radio_value(&mut ui_state.davis_mode_radio_state, DavisTranscoderMode::Framed, "Framed recon");
-            ui.radio_value(&mut ui_state.davis_mode_radio_state, DavisTranscoderMode::RawDavis, "Raw DAVIS");
-            ui.radio_value(&mut ui_state.davis_mode_radio_state, DavisTranscoderMode::RawDvs, "Raw DVS");
-        });
-    });
-    ui.end_row();
-
-    ui.label("DAVIS deblurred FPS:");
-    slider_pm(!enabled, ui, &mut ui_state.davis_output_fps, 1.0..=10000.0, 50.0);
-    ui.end_row();
-
-    ui.label("Optimize:");
-    ui.add_enabled(!enabled, egui::Checkbox::new(&mut ui_state.optimize_c, "Optimize θ?"));
-    ui.end_row();
-}
-
-fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, ui: &mut Ui, value: &mut Num, range: RangeInclusive<Num>, interval: Num) {
+/// A slider with +/- buttons. Returns true if the value was changed.
+fn slider_pm<Num: emath::Numeric + Pm>(
+    enabled: bool,
+    logarithmic: bool,
+    ui: &mut Ui,
+    instant_value: &mut Num,
+    drag_value: &mut Num,
+    range: RangeInclusive<Num>,
+    notches: Vec<Num>,
+    interval: Num,
+) -> bool {
+    let start_value = *instant_value;
     ui.add_enabled_ui(enabled, |ui| {
         ui.horizontal(|ui| {
             if ui.button("-").clicked() {
-                value.decrement(range.start(), &interval);
+                instant_value.decrement(range.start(), &interval);
+                *drag_value = *instant_value;
             }
-            ui.add(egui::Slider::new(value, range.clone()));
+            let slider = ui.add(
+                NotchedSlider::new(drag_value, range.clone(), notches).logarithmic(logarithmic),
+            );
+            if slider.drag_released() {
+                *instant_value = *drag_value;
+            }
+
             if ui.button("+").clicked() {
-                value.increment(range.end(), &interval);
+                instant_value.increment(range.end(), &interval);
+                *drag_value = *instant_value;
             }
         });
     });
+
+    *instant_value != start_value
+}
+
+fn add_slider_row<Num: emath::Numeric + Pm>(
+    enabled: bool,
+    logarithmic: bool,
+    label: impl Into<WidgetText>,
+    ui: &mut Ui,
+    instant_value: &mut Num,
+    drag_value: &mut Num,
+    range: RangeInclusive<Num>,
+    notches: Vec<Num>,
+    interval: Num,
+) -> bool {
+    ui.add_enabled(enabled, egui::Label::new(label));
+    let ret = slider_pm(
+        enabled,
+        logarithmic,
+        ui,
+        instant_value,
+        drag_value,
+        range,
+        notches,
+        interval,
+    );
+    ui.end_row();
+    ret
+}
+
+fn add_checkbox_row(
+    enabled: bool,
+    label_1: impl Into<WidgetText>,
+    label_2: impl Into<WidgetText>,
+    ui: &mut Ui,
+    checkbox_value: &mut bool,
+) -> bool {
+    ui.add_enabled(enabled, egui::Label::new(label_1));
+    let ret = ui
+        .add_enabled(enabled, egui::Checkbox::new(checkbox_value, label_2))
+        .changed();
+    ui.end_row();
+    ret
+}
+
+fn add_radio_row<Value: PartialEq + Clone>(
+    enabled: bool,
+    label: impl Into<WidgetText>,
+    options: Vec<(impl Into<WidgetText> + Clone, Value)>,
+    ui: &mut Ui,
+    radio_state: &mut Value,
+) -> bool {
+    ui.label(label);
+    let mut ret = false;
+    ui.add_enabled_ui(enabled, |ui| {
+        ui.horizontal(|ui| {
+            for option in options {
+                ret |= ui
+                    .radio_value(radio_state, option.1.clone(), option.0.clone())
+                    .changed();
+            }
+        });
+    });
+    ui.end_row();
+    ret
 }
 
 trait Pm {
