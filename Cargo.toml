@@ -1,13 +1,13 @@
 [package]
 name = "adder-viz"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 resolver = "2"
 authors = ["Andrew C. Freeman"]
 description = """
 A GUI project to visualize and tune parameters of an ADΔER asynchronous video transcode.
 """
-homepage = "https://github.com/ac-freeman/adder-viz"
+homepage = "https://github.com/ac-freeman/adder-viz/wiki"
 repository = "https://github.com/ac-freeman/adder-viz"
 readme = "README.md"
 license-file = "LICENSE"
