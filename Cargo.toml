@@ -1,18 +1,21 @@
 [package]
 name = "adder-viz"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 resolver = "2"
 authors = ["Andrew C. Freeman"]
 description = """
-A GUI project to visualize and tune parameters of an ADDER asynchronous video transcode.
+A GUI project to visualize and tune parameters of an ADΔER asynchronous video transcode.
 """
-
 homepage = "https://github.com/ac-freeman/adder-viz"
 repository = "https://github.com/ac-freeman/adder-viz"
 readme = "README.md"
 license-file = "LICENSE"
 keywords = ["neuromorphic", "visualization", "video", "asynchronous", "event"]
+default-run = "adder-viz"
+
+[[bin]]
+name = "adder-viz"
 
 [features]
 default = ["adder_codec_rs/transcoder", "opencv"]

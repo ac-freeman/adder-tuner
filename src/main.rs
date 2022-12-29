@@ -67,13 +67,13 @@ fn main() {
             ..default()
         }))
         .add_plugin(EguiPlugin)
-        // .add_plugin(LogDiagnosticsPlugin::default())
-        // .add_plugin(FrameTimeDiagnosticsPlugin)
-        // .add_plugin(EditorPlugin)
+        .add_system(
+            configure_menu_bar
+                .before(draw_ui)
+        )
         .add_startup_system(configure_visuals)
         .add_system(update_ui_scale_factor)
         .add_system(draw_ui)
-        .add_system(configure_menu_bar)
         .add_system(file_drop)
         .add_system(update_adder_params)
         .add_system(consume_source)
