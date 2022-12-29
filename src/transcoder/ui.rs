@@ -82,6 +82,7 @@ pub struct InfoUiState {
     pub events_ppc_total: f64,
     pub events_total: u64,
     pub source_name: RichText,
+    input_path: Option<PathBuf>,
     pub view_mode_radio_state: FramedViewMode, // TODO: Move to different struct
 }
 
@@ -93,6 +94,7 @@ impl Default for InfoUiState {
             events_ppc_total: 0.0,
             events_total: 0,
             source_name: RichText::new("No file selected yet"),
+            input_path: None,
             view_mode_radio_state: FramedViewMode::Intensity,
         }
     }
@@ -137,11 +139,12 @@ impl TranscoderState {
 
     pub fn central_panel_ui(&mut self, ctx: &Context, ui: &mut Ui, time: Res<Time>) {
         ui.horizontal(|ui| {
-            if ui.button("Open file…").clicked() {
+            if ui.button("Open file").clicked() {
                 if let Some(path) = rfd::FileDialog::new()
                     .add_filter("video", &["mp4", "aedat4"])
                     .pick_file() {
-                    replace_adder_transcoder(self, &path, 0);
+                    self.ui_info_state.input_path = Some(path.clone());
+                    replace_adder_transcoder(self, Some(path), None,0);
                 }
             }
 
@@ -149,6 +152,14 @@ impl TranscoderState {
         });
 
         ui.label(self.ui_info_state.source_name.clone());
+
+        if ui.button("Save file").clicked() {
+            if let Some(path) = rfd::FileDialog::new()
+                .add_filter("adder video", &["adder"])
+                .save_file() {
+                replace_adder_transcoder(self, self.ui_info_state.input_path.clone(), Some(&path), 0);
+            }
+        }
 
         ui.label(format!(
             "{:.2} transcoded FPS\t\
@@ -207,7 +218,8 @@ impl TranscoderState {
                                 let source_name = self.ui_info_state.source_name.clone();
                                 replace_adder_transcoder(
                                     self,
-                                    &PathBuf::from(source_name.text()),
+                                    self.ui_info_state.input_path.clone(),
+                                    None,   // TODO!!
                                     0,
                                 );
                                 return;
@@ -238,7 +250,8 @@ impl TranscoderState {
                             source.get_video().in_interval_count + source.frame_idx_start;
                         replace_adder_transcoder(
                             self,
-                            &PathBuf::from(source_name.text()),
+                            self.ui_info_state.input_path.clone(),
+                            None, // TODO!!
                             current_frame,
                         );
                         return;
@@ -304,7 +317,8 @@ impl TranscoderState {
                 let source_name = ui_info_state.source_name.clone();
                 replace_adder_transcoder(
                     self,
-                    &PathBuf::from(source_name.text()),
+                    self.ui_info_state.input_path.clone(),
+                    None, // TODO!!
                     0,
                 );
                 return;

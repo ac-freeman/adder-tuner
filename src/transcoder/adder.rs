@@ -6,7 +6,7 @@ use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
 use adder_codec_rs::SourceCamera;
 use bevy::prelude::{Commands, Image};
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
 
@@ -37,33 +37,41 @@ impl Error for AdderTranscoderError {}
 
 impl AdderTranscoder {
     pub(crate) fn new(
-        path_buf: &Path,
+        input_path_buf: &Path,
+        output_path_opt: Option<&Path>,
         ui_state: &mut ParamsUiState,
         current_frame: u32,
     ) -> Result<Self, Box<dyn Error>> {
-        match path_buf.extension() {
+        match input_path_buf.extension() {
             None => Err(Box::new(AdderTranscoderError("Invalid file type".into()))),
             Some(ext) => {
                 match ext.to_str() {
                     None => Err(Box::new(AdderTranscoderError("Invalid file type".into()))),
                     Some("mp4") => {
-                        match FramedSourceBuilder::new(
-                            path_buf.to_str().unwrap().to_string(),
+                        let mut builder = FramedSourceBuilder::new(
+                            input_path_buf.to_str().unwrap().to_string(),
                             SourceCamera::FramedU8,
                         )
                         .frame_start(current_frame)
                         .chunk_rows(64)
                         .scale(ui_state.scale)
                         .communicate_events(true)
-                        // .output_events_filename("/home/andrew/Downloads/events.adder".to_string())
                         .color(ui_state.color)
                         .contrast_thresholds(ui_state.adder_tresh as u8, ui_state.adder_tresh as u8)
                         .show_display(false)
                         .time_parameters(
                             ui_state.delta_t_ref as u32,
                             ui_state.delta_t_max_mult * ui_state.delta_t_ref as u32,
-                        )
-                        .finish()
+                        );
+
+                        match output_path_opt {
+                            None => {}
+                            Some(output_path) => {
+                                builder = builder.output_events_filename(output_path.to_str().unwrap().parse().unwrap());
+                            }
+                        };
+
+                        match builder.finish()
                         {
                             Ok(source) => {
                                 ui_state.delta_t_ref_max = 255.0;
@@ -95,13 +103,13 @@ impl AdderTranscoder {
                             .enable_time()
                             .build()
                             .unwrap();
-                        let dir = path_buf
+                        let dir = input_path_buf
                             .parent()
                             .expect("File must be in some directory")
                             .to_str()
                             .expect("Bad path")
                             .to_string();
-                        let filename = path_buf
+                        let filename = input_path_buf
                             .file_name()
                             .expect("File must exist")
                             .to_str()
@@ -159,7 +167,8 @@ impl AdderTranscoder {
 
 pub(crate) fn replace_adder_transcoder(
     transcoder_state: &mut TranscoderState,
-    path_buf: &std::path::PathBuf,
+    input_path_buf: Option<PathBuf>,
+    output_path_opt: Option<&std::path::Path>,
     current_frame: u32,
 ) {
     let mut ui_info_state = &mut transcoder_state.ui_info_state;
@@ -167,15 +176,19 @@ pub(crate) fn replace_adder_transcoder(
     ui_info_state.events_ppc_total = 0.0;
     ui_info_state.events_total = 0;
     ui_info_state.events_ppc_per_sec = 0.0;
-    match AdderTranscoder::new(path_buf, &mut transcoder_state.ui_state, current_frame) {
-        Ok(transcoder) => {
-            transcoder_state.transcoder = transcoder;
-            ui_info_state.source_name =
-                RichText::new(path_buf.to_str().unwrap()).color(Color32::DARK_GREEN);
-        }
-        Err(e) => {
-            transcoder_state.transcoder = AdderTranscoder::default();
-            ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
-        }
-    };
+    if let Some(input_path) = input_path_buf {
+        match AdderTranscoder::new(&input_path, output_path_opt, &mut transcoder_state.ui_state, current_frame) {
+            Ok(transcoder) => {
+                transcoder_state.transcoder = transcoder;
+                ui_info_state.source_name =
+                    RichText::new(input_path.to_str().unwrap()).color(Color32::DARK_GREEN);
+            }
+            Err(e) => {
+                transcoder_state.transcoder = AdderTranscoder::default();
+                ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
+            }
+        };
+    } else { return;}
+
+
 }
