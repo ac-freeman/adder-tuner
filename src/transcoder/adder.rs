@@ -177,11 +177,15 @@ pub(crate) fn replace_adder_transcoder(
     ui_info_state.events_total = 0;
     ui_info_state.events_ppc_per_sec = 0.0;
     if let Some(input_path) = input_path_buf {
-        match AdderTranscoder::new(&input_path, output_path_opt, &mut transcoder_state.ui_state, current_frame) {
+        match AdderTranscoder::new(&input_path, output_path_opt.clone(), &mut transcoder_state.ui_state, current_frame) {
             Ok(transcoder) => {
                 transcoder_state.transcoder = transcoder;
                 ui_info_state.source_name =
                     RichText::new(input_path.to_str().unwrap()).color(Color32::DARK_GREEN);
+                if let Some(output_path) = output_path_opt {
+                    ui_info_state.output_name =
+                        RichText::new(output_path.to_str().unwrap()).color(Color32::DARK_GREEN);
+                }
             }
             Err(e) => {
                 transcoder_state.transcoder = AdderTranscoder::default();

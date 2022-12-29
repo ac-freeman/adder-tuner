@@ -62,6 +62,7 @@ pub struct InfoUiState {
     pub events_ppc_total: f64,
     pub events_total: u64,
     pub source_name: RichText,
+    pub output_name: RichText,
     input_path: Option<PathBuf>,
     output_path: Option<PathBuf>,
     pub view_mode_radio_state: FramedViewMode, // TODO: Move to different struct
@@ -74,7 +75,8 @@ impl Default for InfoUiState {
             events_ppc_per_sec: 0.,
             events_ppc_total: 0.0,
             events_total: 0,
-            source_name: RichText::new("No file selected yet"),
+            source_name: RichText::new("No input file selected yet"),
+            output_name: RichText::new("No output selected yet"),
             input_path: None,
             output_path: None,
             view_mode_radio_state: FramedViewMode::Intensity,
@@ -145,7 +147,9 @@ impl TranscoderState {
                 replace_adder_transcoder(self, self.ui_info_state.input_path.clone(), Some(path), 0);
             }
         }
-        ui.label(self.ui_info_state.output_path.clone().unwrap_or("".to_string().parse().unwrap()).to_str().unwrap());
+
+
+        ui.label(self.ui_info_state.output_name.clone());
 
         ui.label(format!(
             "{:.2} transcoded FPS\t\
@@ -311,10 +315,7 @@ fn side_panel_grid_contents(
     ui_state: &mut ParamsUiState,
 ) {
     let dtr_max = ui_state.delta_t_ref_max;
-    let enabled = match transcoder.davis_source {
-        None => true,
-        Some(_) => false,
-    };
+    let enabled = transcoder.davis_source.is_none();
     ui.add_enabled(enabled, egui::Label::new("Δt_ref:"));
     slider_pm(
         enabled,

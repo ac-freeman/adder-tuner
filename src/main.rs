@@ -284,10 +284,7 @@ fn file_drop(
     query_ui_droptarget: Query<&Interaction, With<MyDropTarget>>,
 ) {
     for ev in dnd_evr.iter() {
-        println!("{:?}", ev);
         if let FileDragAndDrop::DroppedFile { id, path_buf } = ev {
-            println!("Dropped file with path: {:?}", path_buf);
-
             if id.is_primary() {
                 // it was dropped over the main window
             }

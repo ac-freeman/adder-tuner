@@ -9,7 +9,7 @@ use bevy::ecs::system::Resource;
 use bevy::prelude::{Commands, Image, Res, ResMut};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::time::Time;
-use bevy_egui::egui::{RichText, Ui};
+use bevy_egui::egui::{Color32, RichText, Ui};
 
 use crate::player::adder::AdderPlayer;
 use crate::{add_checkbox_row, add_radio_row, add_slider_row, Images};
@@ -201,7 +201,7 @@ impl PlayerState {
             vec![],
             1,
         );
-        need_to_update |= add_checkbox_row(
+        add_checkbox_row(
             true,
             "Loop:",
             "Loop playback?",
@@ -554,22 +554,26 @@ impl PlayerState {
             Some(p) => p,
         };
 
-        self.player = AdderPlayer::new(
+            match AdderPlayer::new(
             path_buf,
             self.ui_sliders.playback_speed,
             self.ui_state.view_mode,
-        )
-        .unwrap();
+        ) {
+                Ok(player) => {  self.player = player }
+                Err(e) => { self.ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED); }
+            }
     }
 
-    pub fn replace_player(&mut self, path_buf: &std::path::PathBuf) {
-        self.player = AdderPlayer::new(
+    pub fn replace_player(&mut self, path_buf: &std::path::Path) {
+        match AdderPlayer::new(
             path_buf,
             self.ui_sliders.playback_speed,
             self.ui_state.view_mode,
-        )
-        .unwrap();
-        self.ui_info_state.source_name = RichText::from(path_buf.to_str().unwrap().to_string());
+        ) {
+            Ok(player) => {  self.player = player;
+                self.ui_info_state.source_name = RichText::from(path_buf.to_str().unwrap().to_string()).color(Color32::DARK_GREEN);}
+            Err(e) => { self.ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED); }
+        }
         self.ui_state.current_frame = 1;
     }
 }
