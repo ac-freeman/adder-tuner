@@ -83,6 +83,7 @@ pub struct InfoUiState {
     pub events_total: u64,
     pub source_name: RichText,
     input_path: Option<PathBuf>,
+    output_path: Option<PathBuf>,
     pub view_mode_radio_state: FramedViewMode, // TODO: Move to different struct
 }
 
@@ -95,6 +96,7 @@ impl Default for InfoUiState {
             events_total: 0,
             source_name: RichText::new("No file selected yet"),
             input_path: None,
+            output_path: None,
             view_mode_radio_state: FramedViewMode::Intensity,
         }
     }
@@ -154,12 +156,17 @@ impl TranscoderState {
         ui.label(self.ui_info_state.source_name.clone());
 
         if ui.button("Save file").clicked() {
-            if let Some(path) = rfd::FileDialog::new()
+            if let Some(mut path) = rfd::FileDialog::new()
                 .add_filter("adder video", &["adder"])
                 .save_file() {
-                replace_adder_transcoder(self, self.ui_info_state.input_path.clone(), Some(&path), 0);
+                if !path.ends_with(".adder") {
+                    path = path.with_extension("adder");;
+                };
+                self.ui_info_state.output_path = Some(path.clone());
+                replace_adder_transcoder(self, self.ui_info_state.input_path.clone(), Some(path), 0);
             }
         }
+        ui.label(self.ui_info_state.output_path.clone().unwrap_or("".to_string().parse().unwrap()).to_str().unwrap());
 
         ui.label(format!(
             "{:.2} transcoded FPS\t\
@@ -177,31 +184,6 @@ impl TranscoderState {
     }
 
     pub fn update_adder_params(&mut self, mut commands: Commands) {
-        // let ui_state = &mut self.ui_state;
-        // let ui_state_mem = &mut self.ui_state_mem;
-        // // First, check if the sliders have changed. If they have, don't do anything this frame.
-        // if ui_state.delta_t_ref_slider != ui_state_mem.delta_t_ref_slider {
-        //     ui_state_mem.delta_t_ref_slider = ui_state.delta_t_ref_slider;
-        //     return;
-        // }
-        // if ui_state.delta_t_max_mult_slider != ui_state_mem.delta_t_max_mult_slider {
-        //     ui_state_mem.delta_t_max_mult_slider = ui_state.delta_t_max_mult_slider;
-        //     return;
-        // }
-        // if ui_state.adder_tresh_slider != ui_state_mem.adder_tresh_slider {
-        //     ui_state_mem.adder_tresh_slider = ui_state.adder_tresh_slider;
-        //     return;
-        // }
-        // if ui_state.scale_slider != ui_state_mem.scale_slider {
-        //     ui_state_mem.scale_slider = ui_state.scale_slider;
-        //     return;
-        // }
-        //
-        // ui_state.delta_t_ref = ui_state.delta_t_ref_slider;
-        // ui_state.delta_t_max_mult = ui_state.delta_t_max_mult_slider;
-        // ui_state.adder_tresh = ui_state.adder_tresh_slider;
-        // ui_state.scale = ui_state.scale_slider;
-
         // TODO: do conditionals on the sliders themselves
         let source: &mut dyn Source = {
             match &mut self.transcoder.framed_source {
@@ -219,7 +201,7 @@ impl TranscoderState {
                                 replace_adder_transcoder(
                                     self,
                                     self.ui_info_state.input_path.clone(),
-                                    None,   // TODO!!
+                                    self.ui_info_state.output_path.clone(),
                                     0,
                                 );
                                 return;
@@ -245,13 +227,12 @@ impl TranscoderState {
                             }
                         }
                     {
-                        let source_name = self.ui_info_state.source_name.clone();
                         let current_frame =
                             source.get_video().in_interval_count + source.frame_idx_start;
                         replace_adder_transcoder(
                             self,
                             self.ui_info_state.input_path.clone(),
-                            None, // TODO!!
+                            self.ui_info_state.output_path.clone(),
                             current_frame,
                         );
                         return;
@@ -318,7 +299,7 @@ impl TranscoderState {
                 replace_adder_transcoder(
                     self,
                     self.ui_info_state.input_path.clone(),
-                    None, // TODO!!
+                    self.ui_info_state.output_path.clone(),
                     0,
                 );
                 return;

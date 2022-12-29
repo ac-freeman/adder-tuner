@@ -38,7 +38,7 @@ impl Error for AdderTranscoderError {}
 impl AdderTranscoder {
     pub(crate) fn new(
         input_path_buf: &Path,
-        output_path_opt: Option<&Path>,
+        output_path_opt: Option<PathBuf>,
         ui_state: &mut ParamsUiState,
         current_frame: u32,
     ) -> Result<Self, Box<dyn Error>> {
@@ -168,7 +168,7 @@ impl AdderTranscoder {
 pub(crate) fn replace_adder_transcoder(
     transcoder_state: &mut TranscoderState,
     input_path_buf: Option<PathBuf>,
-    output_path_opt: Option<&std::path::Path>,
+    output_path_opt: Option<PathBuf>,
     current_frame: u32,
 ) {
     let mut ui_info_state = &mut transcoder_state.ui_info_state;
