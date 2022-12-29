@@ -4,7 +4,7 @@ use adder_codec_rs::transcoder::source::davis_source::DavisSource;
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
 use adder_codec_rs::SourceCamera;
-use bevy::prelude::{Image};
+use bevy::prelude::Image;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -67,12 +67,13 @@ impl AdderTranscoder {
                         match output_path_opt {
                             None => {}
                             Some(output_path) => {
-                                builder = builder.output_events_filename(output_path.to_str().unwrap().parse().unwrap());
+                                builder = builder.output_events_filename(
+                                    output_path.to_str().unwrap().parse().unwrap(),
+                                );
                             }
                         };
 
-                        match builder.finish()
-                        {
+                        match builder.finish() {
                             Ok(source) => {
                                 ui_state.delta_t_ref_max = 255.0;
                                 Ok(AdderTranscoder {
@@ -177,7 +178,12 @@ pub(crate) fn replace_adder_transcoder(
     ui_info_state.events_total = 0;
     ui_info_state.events_ppc_per_sec = 0.0;
     if let Some(input_path) = input_path_buf {
-        match AdderTranscoder::new(&input_path, output_path_opt.clone(), &mut transcoder_state.ui_state, current_frame) {
+        match AdderTranscoder::new(
+            &input_path,
+            output_path_opt.clone(),
+            &mut transcoder_state.ui_state,
+            current_frame,
+        ) {
             Ok(transcoder) => {
                 transcoder_state.transcoder = transcoder;
                 ui_info_state.source_name =
@@ -192,7 +198,6 @@ pub(crate) fn replace_adder_transcoder(
                 ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
             }
         };
-    } else { }
-
-
+    } else {
+    }
 }

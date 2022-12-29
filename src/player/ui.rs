@@ -497,7 +497,8 @@ impl PlayerState {
             if ui.button("Open file…").clicked() {
                 if let Some(path) = rfd::FileDialog::new()
                     .add_filter("adder video", &["adder"])
-                    .pick_file() {
+                    .pick_file()
+                {
                     self.replace_player(&path);
                 }
             }
@@ -552,14 +553,16 @@ impl PlayerState {
             Some(p) => p,
         };
 
-            match AdderPlayer::new(
+        match AdderPlayer::new(
             path_buf,
             self.ui_sliders.playback_speed,
             self.ui_state.view_mode,
         ) {
-                Ok(player) => {  self.player = player }
-                Err(e) => { self.ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED); }
+            Ok(player) => self.player = player,
+            Err(e) => {
+                self.ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
             }
+        }
     }
 
     pub fn replace_player(&mut self, path_buf: &std::path::Path) {
@@ -568,9 +571,15 @@ impl PlayerState {
             self.ui_sliders.playback_speed,
             self.ui_state.view_mode,
         ) {
-            Ok(player) => {  self.player = player;
-                self.ui_info_state.source_name = RichText::from(path_buf.to_str().unwrap().to_string()).color(Color32::DARK_GREEN);}
-            Err(e) => { self.ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED); }
+            Ok(player) => {
+                self.player = player;
+                self.ui_info_state.source_name =
+                    RichText::from(path_buf.to_str().unwrap().to_string())
+                        .color(Color32::DARK_GREEN);
+            }
+            Err(e) => {
+                self.ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
+            }
         }
         self.ui_state.current_frame = 1;
     }

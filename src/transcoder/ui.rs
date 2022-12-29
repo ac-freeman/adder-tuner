@@ -5,7 +5,7 @@ use adder_codec_rs::transcoder::source::video::{FramedViewMode, Source, SourceEr
 use bevy::ecs::system::Resource;
 use bevy::prelude::{Assets, Commands, Image, Res, ResMut, Time};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy_egui::{egui};
+use bevy_egui::egui;
 use bevy_egui::egui::{RichText, Ui};
 use opencv::core::{Mat, MatTraitConstManual};
 use opencv::imgproc;
@@ -125,9 +125,10 @@ impl TranscoderState {
             if ui.button("Open file").clicked() {
                 if let Some(path) = rfd::FileDialog::new()
                     .add_filter("video", &["mp4", "aedat4"])
-                    .pick_file() {
+                    .pick_file()
+                {
                     self.ui_info_state.input_path = Some(path.clone());
-                    replace_adder_transcoder(self, Some(path), None,0);
+                    replace_adder_transcoder(self, Some(path), None, 0);
                 }
             }
 
@@ -139,15 +140,20 @@ impl TranscoderState {
         if ui.button("Save file").clicked() {
             if let Some(mut path) = rfd::FileDialog::new()
                 .add_filter("adder video", &["adder"])
-                .save_file() {
+                .save_file()
+            {
                 if !path.ends_with(".adder") {
                     path = path.with_extension("adder");
                 };
                 self.ui_info_state.output_path = Some(path.clone());
-                replace_adder_transcoder(self, self.ui_info_state.input_path.clone(), Some(path), 0);
+                replace_adder_transcoder(
+                    self,
+                    self.ui_info_state.input_path.clone(),
+                    Some(path),
+                    0,
+                );
             }
         }
-
 
         ui.label(self.ui_info_state.output_name.clone());
 

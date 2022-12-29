@@ -299,7 +299,12 @@ fn file_drop(
             match main_ui_state.view {
                 Tabs::Transcoder => {
                     // TODO: refactor as struct func
-                    replace_adder_transcoder(&mut transcoder_state, Some(path_buf.clone()), None, 0); // TODO!!
+                    replace_adder_transcoder(
+                        &mut transcoder_state,
+                        Some(path_buf.clone()),
+                        None,
+                        0,
+                    ); // TODO!!
                 }
                 Tabs::Player => {
                     player_state.replace_player(path_buf);
