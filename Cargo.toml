@@ -14,9 +14,25 @@ readme = "README.md"
 license-file = "LICENSE"
 keywords = ["neuromorphic", "visualization", "video", "asynchronous", "event"]
 
+[features]
+default = ["adder_codec_rs/transcoder", "opencv"]
+docs-only = ["adder_codec_rs/docs-only", "opencv/docs-only"]
+
+[dependencies.adder_codec_rs]
+version = '0.2.3'
+package = 'adder-codec-rs'
+default-features = false
+features = ["transcoder"]
+optional = false
+
+[dependencies.opencv]
+version = '0.66.0'
+package = 'opencv'
+default-features = false
+features = ['videoio', 'imgproc', 'highgui']
+optional = true
+
 [dependencies]
-adder-codec-rs = { version = "0.2.3", features = ["transcoder"] }
-#adder-codec-rs = { path = "/home/andrew/Code/adder-codec-rs", features = ["transcoder"] }
 bevy = "0.9.0"
 bevy_egui = "0.18.0"
 bevy_editor_pls = "0.2.0"
@@ -24,7 +40,6 @@ egui_file = "0.5"
 rayon = "1.5.3"
 rfd = "0.10.0"
 tokio = {version = "1.20.1", features = ["full"]}
-opencv = "0.66.0"
 strum = "0.24.1"
 strum_macros = "0.24.3"
 
@@ -39,6 +54,7 @@ opt-level = 3
 [profile.release]
 lto = true
 
-#[target.x86_64-unknown-linux-gnu]
-#linker = "clang"
-#rustflags = ["-C", "link-arg=-fuse-ld=/usr/bin/mold"]
+[package.metadata.docs.rs]
+no-default-features = true
+default-target = "x86_64-unknown-linux-gnu"
+features = ["docs-only"]
