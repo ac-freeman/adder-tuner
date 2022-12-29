@@ -83,8 +83,6 @@ pub struct InfoUiState {
     pub events_total: u64,
     pub source_name: RichText,
     pub view_mode_radio_state: FramedViewMode, // TODO: Move to different struct
-    opened_file: Option<PathBuf>,
-    open_file_dialog: Option<FileDialog>,
 }
 
 impl Default for InfoUiState {
@@ -96,8 +94,6 @@ impl Default for InfoUiState {
             events_total: 0,
             source_name: RichText::new("No file selected yet"),
             view_mode_radio_state: FramedViewMode::Intensity,
-            opened_file: None,
-            open_file_dialog: None,
         }
     }
 }
@@ -145,7 +141,6 @@ impl TranscoderState {
                 if let Some(path) = rfd::FileDialog::new()
                     .add_filter("video", &["mp4", "aedat4"])
                     .pick_file() {
-                    self.ui_info_state.opened_file = Some(path.display().to_string().into());
                     replace_adder_transcoder(self, &path, 0);
                 }
             }

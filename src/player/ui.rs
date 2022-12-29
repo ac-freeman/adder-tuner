@@ -495,7 +495,17 @@ impl PlayerState {
     }
 
     pub fn central_panel_ui(&mut self, ui: &mut Ui, time: Res<Time>) {
-        ui.heading("Drag and drop your ADΔER file here (.adder)");
+        ui.horizontal(|ui| {
+            if ui.button("Open file…").clicked() {
+                if let Some(path) = rfd::FileDialog::new()
+                    .add_filter("adder video", &["adder"])
+                    .pick_file() {
+                    self.replace_player(&path);
+                }
+            }
+
+            ui.label("OR drag and drop your ADΔER file here (.adder)");
+        });
 
         ui.label(self.ui_info_state.source_name.clone());
 
