@@ -173,8 +173,6 @@ fn draw_ui(
     handles: Res<Images>,
     mut images: ResMut<Assets<Image>>,
     mut egui_ctx: ResMut<EguiContext>,
-    // mut ui_state: ResMut<ParamsUiState>,
-    // mut ui_info_state: ResMut<InfoUiState>,
     mut transcoder_state: ResMut<TranscoderState>,
     mut player_state: ResMut<PlayerState>,
     main_ui_state: Res<MainUiState>,
@@ -224,8 +222,7 @@ fn draw_ui(
         Images in the central panel are common to both visualization tabs, so we can do this
          here as the last step of drawing its UI
         */
-        match (image, texture_id) {
-            (Some(image), Some(texture_id)) => {
+        if let (Some(image), Some(texture_id)) = (image, texture_id) {
                 let avail_size = ui.available_size();
                 let size = match (image.texture_descriptor.size.width as f32, image.texture_descriptor.size.height as f32) {
                     (a, b) if a/b > avail_size.x/avail_size.y => {
@@ -245,8 +242,6 @@ fn draw_ui(
                 };
                 ui.image(texture_id,  size);
             }
-            _ => {}
-        }
 
 
     });
@@ -374,7 +369,7 @@ fn add_checkbox_row(enabled: bool, label_1: impl Into<WidgetText>, label_2: impl
     ret
 }
 
-fn add_radio_row<'a, Value: PartialEq + Clone>(enabled: bool, label: impl Into<WidgetText>, options: Vec<(impl Into<WidgetText> + Clone, Value)>, ui: &mut Ui, radio_state: &'a mut Value) -> bool {
+fn add_radio_row<Value: PartialEq + Clone>(enabled: bool, label: impl Into<WidgetText>, options: Vec<(impl Into<WidgetText> + Clone, Value)>, ui: &mut Ui, radio_state: &mut Value) -> bool {
     ui.label(label);
     let mut ret = false;
     ui.add_enabled_ui(enabled, |ui| {

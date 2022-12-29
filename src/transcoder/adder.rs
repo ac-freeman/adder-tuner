@@ -1,8 +1,8 @@
 use std::error::Error;
 
 use std::fmt;
-use std::path::PathBuf;
-use bevy::prelude::{Commands, Image, ResMut};
+use std::path::{Path};
+use bevy::prelude::{Commands, Image};
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::davis_source::DavisSource;
 use adder_codec_rs::{SourceCamera};
@@ -13,14 +13,7 @@ use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
 use adder_codec_rs::davis_edi_rs::util::reconstructor::Reconstructor;
 use adder_codec_rs::aedat::base::ioheader_generated::Compression;
 
-use bevy_egui::EguiContext;
-use crate::{Images,};
-
-
-use opencv::{prelude::*, Result};
-use bevy::{
-    prelude::*,
-};
+use opencv::{Result};
 use bevy_egui::egui::{Color32, RichText};
 use crate::transcoder::ui::{ParamsUiState, TranscoderState};
 
@@ -44,7 +37,7 @@ impl fmt::Display for AdderTranscoderError {
 impl Error for AdderTranscoderError {}
 
 impl AdderTranscoder {
-    pub(crate) fn new(path_buf: &PathBuf, ui_state: &mut ParamsUiState, current_frame: u32) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(path_buf: &Path, ui_state: &mut ParamsUiState, current_frame: u32) -> Result<Self, Box<dyn Error>> {
         match path_buf.extension() {
             None => {
                 Err(Box::new(AdderTranscoderError("Invalid file type".into())))
@@ -155,26 +148,6 @@ impl AdderTranscoder {
         }
     }
 }
-
-pub(crate) fn update_adder_params(
-    _images: ResMut<Assets<Image>>,
-    _handles: ResMut<Images>,
-    _egui_ctx: ResMut<EguiContext>,
-    _transcoder_state: ResMut<TranscoderState>,
-    _commands: Commands,
-    ) {
-
-}
-
-// pub(crate) fn consume_source(
-//     mut images: ResMut<Assets<Image>>,
-//     mut handles: ResMut<Images>,
-//     _egui_ctx: ResMut<EguiContext>,
-//     mut transcoder_state: ResMut<TranscoderState>,
-//     mut commands: Commands,
-// ) {
-//     transcoder_state.consume_source(images, handles, commands);
-// }
 
 pub(crate) fn replace_adder_transcoder(_commands: &mut Commands,
                                        transcoder_state: &mut TranscoderState,

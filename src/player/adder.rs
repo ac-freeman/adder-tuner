@@ -1,8 +1,8 @@
 use std::error::Error;
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use adder_codec_rs::{Codec, DeltaT};
-use adder_codec_rs::framer::event_framer::{Framer, FramerBuilder, FrameSequence};
+use adder_codec_rs::framer::event_framer::{FramerBuilder, FrameSequence};
 use adder_codec_rs::framer::event_framer::FramerMode::INSTANTANEOUS;
 use adder_codec_rs::raw::raw_stream::RawStream;
 use adder_codec_rs::transcoder::source::video::FramedViewMode;
@@ -37,7 +37,7 @@ impl fmt::Display for AdderPlayerError {
 impl Error for AdderPlayerError {}
 
 impl AdderPlayer {
-    pub(crate) fn new(path_buf: &PathBuf, playback_speed: f32, view_mode: FramedViewMode) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(path_buf: &Path, playback_speed: f32, view_mode: FramedViewMode) -> Result<Self, Box<dyn Error>> {
         match path_buf.extension() {
             None => {
                 Err(Box::new(AdderPlayerError("Invalid file type".into())))
