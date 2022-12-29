@@ -494,7 +494,7 @@ impl PlayerState {
 
     pub fn central_panel_ui(&mut self, ui: &mut Ui, time: Res<Time>) {
         ui.horizontal(|ui| {
-            if ui.button("Open file…").clicked() {
+            if ui.button("Open file").clicked() {
                 if let Some(path) = rfd::FileDialog::new()
                     .add_filter("adder video", &["adder"])
                     .pick_file()
