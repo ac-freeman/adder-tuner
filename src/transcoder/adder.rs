@@ -137,9 +137,16 @@ impl AdderTranscoder {
                             true,
                         ));
 
+                        let output_string = match output_path_opt {
+                            None => {None}
+                            Some(output_path) => {
+                                Some(output_path.to_str().unwrap().to_string())
+                            }
+                        };
+
                         let davis_source = DavisSource::new(
                             reconstructor,
-                            None,        // TODO
+                            output_string.clone(),
                             1000000_u32, // TODO
                             1000000.0 / ui_state.davis_output_fps,
                             (1000000.0 * ui_state.delta_t_max_mult as f32) as u32, // TODO
@@ -149,7 +156,7 @@ impl AdderTranscoder {
                             false,
                             rt,
                             ui_state.davis_mode_radio_state,
-                            false,
+                            output_string.is_some(),
                         )
                         .unwrap();
 
