@@ -5,14 +5,12 @@ use adder_codec_rs::transcoder::source::video::{FramedViewMode, Source, SourceEr
 use bevy::ecs::system::Resource;
 use bevy::prelude::{Assets, Commands, Image, Res, ResMut, Time};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy_egui::{egui, EguiContext};
-use bevy_egui::egui::{Context, RichText, Ui};
+use bevy_egui::{egui};
+use bevy_egui::egui::{RichText, Ui};
 use opencv::core::{Mat, MatTraitConstManual};
 use opencv::imgproc;
 use rayon::current_num_threads;
 use std::path::PathBuf;
-use bevy::reflect::GetPath;
-use egui_file::FileDialog;
 
 pub struct ParamsUiState {
     pub delta_t_ref: f32,
@@ -58,24 +56,6 @@ impl Default for ParamsUiState {
     }
 }
 
-pub struct UiStateMemory {
-    pub delta_t_ref_slider: f32,
-    pub delta_t_max_mult_slider: u32,
-    pub adder_tresh_slider: f32,
-    pub scale_slider: f64,
-}
-
-impl Default for UiStateMemory {
-    fn default() -> Self {
-        UiStateMemory {
-            delta_t_ref_slider: 255.0,
-            delta_t_max_mult_slider: 120,
-            adder_tresh_slider: 10.0,
-            scale_slider: 0.5,
-        }
-    }
-}
-
 pub struct InfoUiState {
     pub events_per_sec: f64,
     pub events_ppc_per_sec: f64,
@@ -108,7 +88,6 @@ unsafe impl Sync for InfoUiState {}
 pub struct TranscoderState {
     pub(crate) transcoder: AdderTranscoder,
     pub ui_state: ParamsUiState,
-    pub(crate) ui_state_mem: UiStateMemory,
     pub ui_info_state: InfoUiState,
 }
 
@@ -139,7 +118,7 @@ impl TranscoderState {
             });
     }
 
-    pub fn central_panel_ui(&mut self, ctx: &Context, ui: &mut Ui, time: Res<Time>) {
+    pub fn central_panel_ui(&mut self, ui: &mut Ui, time: Res<Time>) {
         ui.horizontal(|ui| {
             if ui.button("Open file").clicked() {
                 if let Some(path) = rfd::FileDialog::new()
@@ -160,7 +139,7 @@ impl TranscoderState {
                 .add_filter("adder video", &["adder"])
                 .save_file() {
                 if !path.ends_with(".adder") {
-                    path = path.with_extension("adder");;
+                    path = path.with_extension("adder");
                 };
                 self.ui_info_state.output_path = Some(path.clone());
                 replace_adder_transcoder(self, self.ui_info_state.input_path.clone(), Some(path), 0);
@@ -183,7 +162,7 @@ impl TranscoderState {
         ));
     }
 
-    pub fn update_adder_params(&mut self, mut commands: Commands) {
+    pub fn update_adder_params(&mut self) {
         // TODO: do conditionals on the sliders themselves
         let source: &mut dyn Source = {
             match &mut self.transcoder.framed_source {
@@ -197,7 +176,6 @@ impl TranscoderState {
                                 || source.get_reconstructor().output_fps
                                     != self.ui_state.davis_output_fps
                             {
-                                let source_name = self.ui_info_state.source_name.clone();
                                 replace_adder_transcoder(
                                     self,
                                     self.ui_info_state.input_path.clone(),
@@ -253,7 +231,6 @@ impl TranscoderState {
         &mut self,
         mut images: ResMut<Assets<Image>>,
         mut handles: ResMut<Images>,
-        mut commands: Commands,
     ) {
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(self.ui_state.thread_count)
@@ -295,7 +272,6 @@ impl TranscoderState {
             Err(SourceError::Open) => {}
             Err(_) => {
                 // Start video over from the beginning
-                let source_name = ui_info_state.source_name.clone();
                 replace_adder_transcoder(
                     self,
                     self.ui_info_state.input_path.clone(),

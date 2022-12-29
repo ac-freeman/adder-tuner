@@ -4,7 +4,7 @@ use adder_codec_rs::transcoder::source::davis_source::DavisSource;
 use adder_codec_rs::transcoder::source::framed_source::FramedSource;
 use adder_codec_rs::transcoder::source::framed_source::FramedSourceBuilder;
 use adder_codec_rs::SourceCamera;
-use bevy::prelude::{Commands, Image};
+use bevy::prelude::{Image};
 use std::fmt;
 use std::path::{Path, PathBuf};
 

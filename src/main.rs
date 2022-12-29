@@ -197,7 +197,7 @@ fn draw_ui(
 
         match main_ui_state.view {
             Tabs::Transcoder => {
-                transcoder_state.central_panel_ui(egui_ctx.ctx_mut(), ui, time);
+                transcoder_state.central_panel_ui(ui, time);
             }
             Tabs::Player => {
                 player_state.central_panel_ui(ui, time);
@@ -243,12 +243,10 @@ fn draw_ui(
 fn update_adder_params(
     main_ui_state: Res<MainUiState>,
     mut transcoder_state: ResMut<TranscoderState>,
-    _player_state: ResMut<PlayerState>,
-    commands: Commands,
 ) {
     match main_ui_state.view {
         Tabs::Transcoder => {
-            transcoder_state.update_adder_params(commands);
+            transcoder_state.update_adder_params();
         }
         Tabs::Player => {
             // player_state.update_adder_params(commands);
@@ -266,7 +264,7 @@ fn consume_source(
 ) {
     match main_ui_state.view {
         Tabs::Transcoder => {
-            transcoder_state.consume_source(images, handles, commands);
+            transcoder_state.consume_source(images, handles);
         }
         Tabs::Player => {
             player_state.consume_source(images, handles, commands);
@@ -282,7 +280,6 @@ fn file_drop(
     main_ui_state: ResMut<MainUiState>,
     mut player_state: ResMut<PlayerState>,
     mut transcoder_state: ResMut<TranscoderState>,
-    mut commands: Commands,
     mut dnd_evr: EventReader<FileDragAndDrop>,
     query_ui_droptarget: Query<&Interaction, With<MyDropTarget>>,
 ) {

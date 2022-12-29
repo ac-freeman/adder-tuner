@@ -30,6 +30,7 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 // ----------------------------------------------------------------------------
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct SliderSpec {
     logarithmic: bool,
 
@@ -44,6 +45,7 @@ struct SliderSpec {
 }
 
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[allow(dead_code)]
 pub struct NotchedSlider<'a> {
     get_set_value: GetSetValue<'a>,
     range: RangeInclusive<f64>,
@@ -64,6 +66,7 @@ pub struct NotchedSlider<'a> {
     custom_parser: Option<NumParser<'a>>,
 }
 
+#[allow(dead_code)]
 impl<'a> NotchedSlider<'a> {
     /// Creates a new horizontal slider.
     pub fn new<Num: emath::Numeric>(
