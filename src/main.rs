@@ -192,7 +192,7 @@ fn draw_ui(
         ),
     };
 
-    egui::CentralPanel::default().show(&egui_ctx.clone().ctx_mut(), |ui| {
+    egui::CentralPanel::default().show(egui_ctx.clone().ctx_mut(), |ui| {
         egui::warn_if_debug_build(ui);
 
         match main_ui_state.view {

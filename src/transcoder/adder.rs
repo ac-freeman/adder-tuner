@@ -188,7 +188,7 @@ pub(crate) fn replace_adder_transcoder(
                 ui_info_state.source_name = RichText::new(e.to_string()).color(Color32::RED);
             }
         };
-    } else { return;}
+    } else { }
 
 
 }
