@@ -192,12 +192,12 @@ fn draw_ui(
         ),
     };
 
-    egui::CentralPanel::default().show(egui_ctx.ctx_mut(), |ui| {
+    egui::CentralPanel::default().show(&egui_ctx.clone().ctx_mut(), |ui| {
         egui::warn_if_debug_build(ui);
 
         match main_ui_state.view {
             Tabs::Transcoder => {
-                transcoder_state.central_panel_ui(ui, time);
+                transcoder_state.central_panel_ui(egui_ctx.ctx_mut(), ui, time);
             }
             Tabs::Player => {
                 player_state.central_panel_ui(ui, time);
@@ -305,7 +305,7 @@ fn file_drop(
             match main_ui_state.view {
                 Tabs::Transcoder => {
                     // TODO: refactor as struct func
-                    replace_adder_transcoder(&mut commands, &mut transcoder_state, path_buf, 0);
+                    replace_adder_transcoder(&mut transcoder_state, path_buf, 0);
                 }
                 Tabs::Player => {
                     player_state.replace_player(path_buf);

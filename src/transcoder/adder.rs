@@ -158,7 +158,6 @@ impl AdderTranscoder {
 }
 
 pub(crate) fn replace_adder_transcoder(
-    _commands: &mut Commands,
     transcoder_state: &mut TranscoderState,
     path_buf: &std::path::PathBuf,
     current_frame: u32,

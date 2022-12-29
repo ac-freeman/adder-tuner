@@ -5,12 +5,14 @@ use adder_codec_rs::transcoder::source::video::{FramedViewMode, Source, SourceEr
 use bevy::ecs::system::Resource;
 use bevy::prelude::{Assets, Commands, Image, Res, ResMut, Time};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy_egui::egui;
-use bevy_egui::egui::{RichText, Ui};
+use bevy_egui::{egui, EguiContext};
+use bevy_egui::egui::{Context, RichText, Ui};
 use opencv::core::{Mat, MatTraitConstManual};
 use opencv::imgproc;
 use rayon::current_num_threads;
 use std::path::PathBuf;
+use bevy::reflect::GetPath;
+use egui_file::FileDialog;
 
 pub struct ParamsUiState {
     pub delta_t_ref: f32,
@@ -81,6 +83,8 @@ pub struct InfoUiState {
     pub events_total: u64,
     pub source_name: RichText,
     pub view_mode_radio_state: FramedViewMode, // TODO: Move to different struct
+    opened_file: Option<PathBuf>,
+    open_file_dialog: Option<FileDialog>,
 }
 
 impl Default for InfoUiState {
@@ -92,9 +96,13 @@ impl Default for InfoUiState {
             events_total: 0,
             source_name: RichText::new("No file selected yet"),
             view_mode_radio_state: FramedViewMode::Intensity,
+            opened_file: None,
+            open_file_dialog: None,
         }
     }
 }
+
+unsafe impl Sync for InfoUiState {}
 
 #[derive(Resource, Default)]
 pub struct TranscoderState {
@@ -131,8 +139,19 @@ impl TranscoderState {
             });
     }
 
-    pub fn central_panel_ui(&mut self, ui: &mut Ui, time: Res<Time>) {
-        ui.heading("Drag and drop your source file here (.mp4, .aedat4)");
+    pub fn central_panel_ui(&mut self, ctx: &Context, ui: &mut Ui, time: Res<Time>) {
+        ui.horizontal(|ui| {
+            if ui.button("Open file…").clicked() {
+                if let Some(path) = rfd::FileDialog::new()
+                    .add_filter("video", &["mp4", "aedat4"])
+                    .pick_file() {
+                    self.ui_info_state.opened_file = Some(path.display().to_string().into());
+                    replace_adder_transcoder(self, &path, 0);
+                }
+            }
+
+            ui.label("OR drag and drop your source file here (.mp4, .aedat4)");
+        });
 
         ui.label(self.ui_info_state.source_name.clone());
 
@@ -192,7 +211,6 @@ impl TranscoderState {
                             {
                                 let source_name = self.ui_info_state.source_name.clone();
                                 replace_adder_transcoder(
-                                    &mut commands,
                                     self,
                                     &PathBuf::from(source_name.text()),
                                     0,
@@ -224,7 +242,6 @@ impl TranscoderState {
                         let current_frame =
                             source.get_video().in_interval_count + source.frame_idx_start;
                         replace_adder_transcoder(
-                            &mut commands,
                             self,
                             &PathBuf::from(source_name.text()),
                             current_frame,
@@ -291,7 +308,6 @@ impl TranscoderState {
                 // Start video over from the beginning
                 let source_name = ui_info_state.source_name.clone();
                 replace_adder_transcoder(
-                    &mut commands,
                     self,
                     &PathBuf::from(source_name.text()),
                     0,
