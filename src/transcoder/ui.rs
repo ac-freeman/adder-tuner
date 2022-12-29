@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use crate::transcoder::adder::{replace_adder_transcoder, AdderTranscoder};
+use crate::{slider_pm, Images};
 use adder_codec_rs::transcoder::source::davis_source::DavisTranscoderMode;
 use adder_codec_rs::transcoder::source::video::{FramedViewMode, Source, SourceError};
 use bevy::ecs::system::Resource;
@@ -9,9 +10,7 @@ use bevy_egui::egui::{RichText, Ui};
 use opencv::core::{Mat, MatTraitConstManual};
 use opencv::imgproc;
 use rayon::current_num_threads;
-use crate::{Images, slider_pm};
-use crate::transcoder::adder::{AdderTranscoder, replace_adder_transcoder};
-
+use std::path::PathBuf;
 
 pub struct ParamsUiState {
     pub delta_t_ref: f32,
@@ -70,7 +69,7 @@ impl Default for UiStateMemory {
             delta_t_ref_slider: 255.0,
             delta_t_max_mult_slider: 120,
             adder_tresh_slider: 10.0,
-            scale_slider: 0.5
+            scale_slider: 0.5,
         }
     }
 }
@@ -81,7 +80,7 @@ pub struct InfoUiState {
     pub events_ppc_total: f64,
     pub events_total: u64,
     pub source_name: RichText,
-    pub view_mode_radio_state: FramedViewMode,   // TODO: Move to different struct
+    pub view_mode_radio_state: FramedViewMode, // TODO: Move to different struct
 }
 
 impl Default for InfoUiState {
@@ -112,7 +111,7 @@ impl TranscoderState {
         mut commands: Commands,
         _images: &mut ResMut<Assets<Image>>,
     ) {
-        ui.horizontal(|ui|{
+        ui.horizontal(|ui| {
             ui.heading("ADΔER Parameters");
             if ui.add(egui::Button::new("Reset params")).clicked() {
                 self.ui_state = Default::default();
@@ -132,11 +131,7 @@ impl TranscoderState {
             });
     }
 
-    pub fn central_panel_ui(
-        &mut self,
-        ui: &mut Ui,
-        time: Res<Time>
-    ) {
+    pub fn central_panel_ui(&mut self, ui: &mut Ui, time: Res<Time>) {
         ui.heading("Drag and drop your source file here (.mp4, .aedat4)");
 
         ui.label(self.ui_info_state.source_name.clone());
@@ -148,7 +143,7 @@ impl TranscoderState {
             {:.0} events total\t\
             {:.0} events PPC total
             ",
-                1. / time.delta_seconds(),
+            1. / time.delta_seconds(),
             self.ui_info_state.events_per_sec,
             self.ui_info_state.events_ppc_per_sec,
             self.ui_info_state.events_total,
@@ -157,47 +152,51 @@ impl TranscoderState {
     }
 
     pub fn update_adder_params(&mut self, mut commands: Commands) {
-
-            // let ui_state = &mut self.ui_state;
-            // let ui_state_mem = &mut self.ui_state_mem;
-            // // First, check if the sliders have changed. If they have, don't do anything this frame.
-            // if ui_state.delta_t_ref_slider != ui_state_mem.delta_t_ref_slider {
-            //     ui_state_mem.delta_t_ref_slider = ui_state.delta_t_ref_slider;
-            //     return;
-            // }
-            // if ui_state.delta_t_max_mult_slider != ui_state_mem.delta_t_max_mult_slider {
-            //     ui_state_mem.delta_t_max_mult_slider = ui_state.delta_t_max_mult_slider;
-            //     return;
-            // }
-            // if ui_state.adder_tresh_slider != ui_state_mem.adder_tresh_slider {
-            //     ui_state_mem.adder_tresh_slider = ui_state.adder_tresh_slider;
-            //     return;
-            // }
-            // if ui_state.scale_slider != ui_state_mem.scale_slider {
-            //     ui_state_mem.scale_slider = ui_state.scale_slider;
-            //     return;
-            // }
-            //
-            // ui_state.delta_t_ref = ui_state.delta_t_ref_slider;
-            // ui_state.delta_t_max_mult = ui_state.delta_t_max_mult_slider;
-            // ui_state.adder_tresh = ui_state.adder_tresh_slider;
-            // ui_state.scale = ui_state.scale_slider;
-
-
+        // let ui_state = &mut self.ui_state;
+        // let ui_state_mem = &mut self.ui_state_mem;
+        // // First, check if the sliders have changed. If they have, don't do anything this frame.
+        // if ui_state.delta_t_ref_slider != ui_state_mem.delta_t_ref_slider {
+        //     ui_state_mem.delta_t_ref_slider = ui_state.delta_t_ref_slider;
+        //     return;
+        // }
+        // if ui_state.delta_t_max_mult_slider != ui_state_mem.delta_t_max_mult_slider {
+        //     ui_state_mem.delta_t_max_mult_slider = ui_state.delta_t_max_mult_slider;
+        //     return;
+        // }
+        // if ui_state.adder_tresh_slider != ui_state_mem.adder_tresh_slider {
+        //     ui_state_mem.adder_tresh_slider = ui_state.adder_tresh_slider;
+        //     return;
+        // }
+        // if ui_state.scale_slider != ui_state_mem.scale_slider {
+        //     ui_state_mem.scale_slider = ui_state.scale_slider;
+        //     return;
+        // }
+        //
+        // ui_state.delta_t_ref = ui_state.delta_t_ref_slider;
+        // ui_state.delta_t_max_mult = ui_state.delta_t_max_mult_slider;
+        // ui_state.adder_tresh = ui_state.adder_tresh_slider;
+        // ui_state.scale = ui_state.scale_slider;
 
         // TODO: do conditionals on the sliders themselves
         let source: &mut dyn Source = {
-
             match &mut self.transcoder.framed_source {
                 None => {
                     match &mut self.transcoder.davis_source {
-                        None => { return; }
+                        None => {
+                            return;
+                        }
                         Some(source) => {
                             if source.mode != self.ui_state.davis_mode_radio_state
-                                || source.get_reconstructor().output_fps != self.ui_state.davis_output_fps
+                                || source.get_reconstructor().output_fps
+                                    != self.ui_state.davis_output_fps
                             {
                                 let source_name = self.ui_info_state.source_name.clone();
-                                replace_adder_transcoder(&mut commands, self, &PathBuf::from(source_name.text()), 0);
+                                replace_adder_transcoder(
+                                    &mut commands,
+                                    self,
+                                    &PathBuf::from(source_name.text()),
+                                    0,
+                                );
                                 return;
                             }
                             // let tmp = source.get_reconstructor();
@@ -211,19 +210,25 @@ impl TranscoderState {
                     if source.scale != self.ui_state.scale
                         || source.get_ref_time() != self.ui_state.delta_t_ref as u32
                         || match source.get_video().channels {
-                        1 => {
-                            // True if the transcoder is gray, but the user wants color
-                            self.ui_state.color
+                            1 => {
+                                // True if the transcoder is gray, but the user wants color
+                                self.ui_state.color
+                            }
+                            _ => {
+                                // True if the transcoder is color, but the user wants gray
+                                !self.ui_state.color
+                            }
                         }
-                        _ => {
-                            // True if the transcoder is color, but the user wants gray
-                            !self.ui_state.color
-                        }
-                    }
                     {
                         let source_name = self.ui_info_state.source_name.clone();
-                        let current_frame = source.get_video().in_interval_count + source.frame_idx_start;
-                        replace_adder_transcoder(&mut commands, self, &PathBuf::from(source_name.text()), current_frame);
+                        let current_frame =
+                            source.get_video().in_interval_count + source.frame_idx_start;
+                        replace_adder_transcoder(
+                            &mut commands,
+                            self,
+                            &PathBuf::from(source_name.text()),
+                            current_frame,
+                        );
                         return;
                     }
                     source
@@ -253,19 +258,14 @@ impl TranscoderState {
         ui_info_state.events_per_sec = 0.;
 
         let source: &mut dyn Source = {
-
             match &mut self.transcoder.framed_source {
-                None => {
-                    match &mut self.transcoder.davis_source {
-                        None => { return; }
-                        Some(source) => {
-                            source
-                        }
+                None => match &mut self.transcoder.davis_source {
+                    None => {
+                        return;
                     }
-                }
-                Some(source) => {
-                    source
-                }
+                    Some(source) => source,
+                },
+                Some(source) => source,
             }
         };
         match source.consume(1, &pool) {
@@ -274,18 +274,28 @@ impl TranscoderState {
                     ui_info_state.events_total += events_vec.len() as u64;
                     ui_info_state.events_per_sec += events_vec.len() as f64;
                 }
-                ui_info_state.events_ppc_total = ui_info_state.events_total as f64 / (source.get_video().width as f64 * source.get_video().height as f64 * source.get_video().channels as f64);
-                let source_fps = source.get_video().get_tps() as f64 / source.get_video().get_ref_time() as f64;
+                ui_info_state.events_ppc_total = ui_info_state.events_total as f64
+                    / (source.get_video().width as f64
+                        * source.get_video().height as f64
+                        * source.get_video().channels as f64);
+                let source_fps =
+                    source.get_video().get_tps() as f64 / source.get_video().get_ref_time() as f64;
                 ui_info_state.events_per_sec *= source_fps;
-                ui_info_state.events_ppc_per_sec = ui_info_state.events_per_sec / (source.get_video().width as f64 * source.get_video().height as f64 * source.get_video().channels as f64);
+                ui_info_state.events_ppc_per_sec = ui_info_state.events_per_sec
+                    / (source.get_video().width as f64
+                        * source.get_video().height as f64
+                        * source.get_video().channels as f64);
             }
-            Err(SourceError::Open) => {
-
-            }
+            Err(SourceError::Open) => {}
             Err(_) => {
                 // Start video over from the beginning
                 let source_name = ui_info_state.source_name.clone();
-                replace_adder_transcoder(&mut commands, self, &PathBuf::from(source_name.text()), 0);
+                replace_adder_transcoder(
+                    &mut commands,
+                    self,
+                    &PathBuf::from(source_name.text()),
+                    0,
+                );
                 return;
             }
         };
@@ -302,75 +312,151 @@ impl TranscoderState {
                 height: source.get_video().height.into(),
                 depth_or_array_layers: 1,
             },
-
             TextureDimension::D2,
             Vec::from(image_mat_bgra.data_bytes().unwrap()),
-            TextureFormat::Bgra8UnormSrgb);
+            TextureFormat::Bgra8UnormSrgb,
+        );
         self.transcoder.live_image = image_bevy;
-
 
         let handle = images.add(self.transcoder.live_image.clone());
         handles.image_view = handle;
     }
 }
 
-fn side_panel_grid_contents(transcoder: &AdderTranscoder, ui: &mut Ui, ui_state: &mut ParamsUiState) {
+fn side_panel_grid_contents(
+    transcoder: &AdderTranscoder,
+    ui: &mut Ui,
+    ui_state: &mut ParamsUiState,
+) {
     let dtr_max = ui_state.delta_t_ref_max;
     let enabled = match transcoder.davis_source {
-        None => { true}
-        Some(_) => { false }
+        None => true,
+        Some(_) => false,
     };
     ui.add_enabled(enabled, egui::Label::new("Δt_ref:"));
-    slider_pm(enabled, false,ui, &mut ui_state.delta_t_ref, &mut ui_state.delta_t_ref_slider, 1.0..=dtr_max, vec![],10.0);
+    slider_pm(
+        enabled,
+        false,
+        ui,
+        &mut ui_state.delta_t_ref,
+        &mut ui_state.delta_t_ref_slider,
+        1.0..=dtr_max,
+        vec![],
+        10.0,
+    );
     ui.end_row();
 
     ui.label("Δt_max multiplier:");
-    slider_pm(true,false, ui, &mut ui_state.delta_t_max_mult, &mut ui_state.delta_t_max_mult_slider, 2..=1000, vec![],10);
+    slider_pm(
+        true,
+        false,
+        ui,
+        &mut ui_state.delta_t_max_mult,
+        &mut ui_state.delta_t_max_mult_slider,
+        2..=1000,
+        vec![],
+        10,
+    );
     ui.end_row();
 
     ui.label("ADΔER threshold:");
-    slider_pm(true, false,ui, &mut ui_state.adder_tresh, &mut ui_state.adder_tresh_slider, 0.0..=255.0, vec![],1.0);
+    slider_pm(
+        true,
+        false,
+        ui,
+        &mut ui_state.adder_tresh,
+        &mut ui_state.adder_tresh_slider,
+        0.0..=255.0,
+        vec![],
+        1.0,
+    );
     ui.end_row();
 
-
     ui.label("Thread count:");
-    slider_pm(true,false, ui, &mut ui_state.thread_count, &mut ui_state.thread_count_slider, 1..=(current_num_threads()-1).max(4), vec![],1);
+    slider_pm(
+        true,
+        false,
+        ui,
+        &mut ui_state.thread_count,
+        &mut ui_state.thread_count_slider,
+        1..=(current_num_threads() - 1).max(4),
+        vec![],
+        1,
+    );
     ui.end_row();
 
     ui.label("Video scale:");
-    slider_pm(enabled, false,ui, &mut ui_state.scale, &mut ui_state.scale_slider, 0.01..=1.0, vec![0.25, 0.5, 0.75],0.1);
+    slider_pm(
+        enabled,
+        false,
+        ui,
+        &mut ui_state.scale,
+        &mut ui_state.scale_slider,
+        0.01..=1.0,
+        vec![0.25, 0.5, 0.75],
+        0.1,
+    );
     ui.end_row();
-
 
     ui.label("Channels:");
     ui.add_enabled(enabled, egui::Checkbox::new(&mut ui_state.color, "Color?"));
     ui.end_row();
 
-
     ui.label("View mode:");
     ui.horizontal(|ui| {
-        ui.radio_value(&mut ui_state.view_mode_radio_state, FramedViewMode::Intensity, "Intensity");
+        ui.radio_value(
+            &mut ui_state.view_mode_radio_state,
+            FramedViewMode::Intensity,
+            "Intensity",
+        );
         ui.radio_value(&mut ui_state.view_mode_radio_state, FramedViewMode::D, "D");
-        ui.radio_value(&mut ui_state.view_mode_radio_state, FramedViewMode::DeltaT, "Δt");
+        ui.radio_value(
+            &mut ui_state.view_mode_radio_state,
+            FramedViewMode::DeltaT,
+            "Δt",
+        );
     });
     ui.end_row();
 
     ui.label("DAVIS mode:");
     ui.add_enabled_ui(!enabled, |ui| {
         ui.horizontal(|ui| {
-            ui.radio_value(&mut ui_state.davis_mode_radio_state, DavisTranscoderMode::Framed, "Framed recon");
-            ui.radio_value(&mut ui_state.davis_mode_radio_state, DavisTranscoderMode::RawDavis, "Raw DAVIS");
-            ui.radio_value(&mut ui_state.davis_mode_radio_state, DavisTranscoderMode::RawDvs, "Raw DVS");
+            ui.radio_value(
+                &mut ui_state.davis_mode_radio_state,
+                DavisTranscoderMode::Framed,
+                "Framed recon",
+            );
+            ui.radio_value(
+                &mut ui_state.davis_mode_radio_state,
+                DavisTranscoderMode::RawDavis,
+                "Raw DAVIS",
+            );
+            ui.radio_value(
+                &mut ui_state.davis_mode_radio_state,
+                DavisTranscoderMode::RawDvs,
+                "Raw DVS",
+            );
         });
     });
     ui.end_row();
 
     ui.label("DAVIS deblurred FPS:");
-    slider_pm(!enabled, false,ui, &mut ui_state.davis_output_fps, &mut ui_state.davis_output_fps_slider, 1.0..=10000.0, vec![2500.0, 5000.0, 7500.0],50.0);
+    slider_pm(
+        !enabled,
+        false,
+        ui,
+        &mut ui_state.davis_output_fps,
+        &mut ui_state.davis_output_fps_slider,
+        1.0..=10000.0,
+        vec![2500.0, 5000.0, 7500.0],
+        50.0,
+    );
     ui.end_row();
 
     ui.label("Optimize:");
-    ui.add_enabled(!enabled, egui::Checkbox::new(&mut ui_state.optimize_c, "Optimize θ?"));
+    ui.add_enabled(
+        !enabled,
+        egui::Checkbox::new(&mut ui_state.optimize_c, "Optimize θ?"),
+    );
     ui.end_row();
 }
-

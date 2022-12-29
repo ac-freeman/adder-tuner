@@ -3,8 +3,12 @@ This was manually copied from egui/src/widgets/slider.rs. I modified it to add "
 to the slider. This will be removed in the future, if egui adds an equivalent feature.
  */
 
+use bevy_egui::egui::{
+    emath, epaint, lerp, pos2, remap, remap_clamp, vec2, Color32, DragValue, Key, Label, NumExt,
+    Pos2, Rect, Response, Sense, SliderOrientation, Stroke, TextStyle, Ui, Vec2, Widget,
+    WidgetInfo, WidgetText,
+};
 use std::ops::RangeInclusive;
-use bevy_egui::egui::{Color32, DragValue, emath, epaint, Key, Label, lerp, NumExt, Pos2, pos2, Rect, remap, remap_clamp, Response, Sense, SliderOrientation, Stroke, TextStyle, Ui, vec2, Vec2, Widget, WidgetInfo, WidgetText};
 
 type NumFormatter<'a> = Box<dyn 'a + Fn(f64, RangeInclusive<usize>) -> String>;
 type NumParser<'a> = Box<dyn 'a + Fn(&str) -> Option<f64>>;
@@ -62,7 +66,11 @@ pub struct NotchedSlider<'a> {
 
 impl<'a> NotchedSlider<'a> {
     /// Creates a new horizontal slider.
-    pub fn new<Num: emath::Numeric>(value: &'a mut Num, range: RangeInclusive<Num>, notches: Vec<Num>) -> Self {
+    pub fn new<Num: emath::Numeric>(
+        value: &'a mut Num,
+        range: RangeInclusive<Num>,
+        notches: Vec<Num>,
+    ) -> Self {
         let range_f64 = range.start().to_f64()..=range.end().to_f64();
         let notches_f64 = notches.into_iter().map(|n| n.to_f64()).collect();
         let slf = Self::from_get_set(range_f64, notches_f64, move |v: Option<f64>| {
@@ -343,7 +351,7 @@ impl<'a> NotchedSlider<'a> {
                 format!("{sign}{:0>min_width$b}", n.abs() as i64)
             })
         }
-            .custom_parser(|s| i64::from_str_radix(s, 2).map(|n| n as f64).ok())
+        .custom_parser(|s| i64::from_str_radix(s, 2).map(|n| n as f64).ok())
     }
 
     /// Set `custom_formatter` and `custom_parser` to display and parse numbers as octal integers. Floating point
@@ -378,7 +386,7 @@ impl<'a> NotchedSlider<'a> {
                 format!("{sign}{:0>min_width$o}", n.abs() as i64)
             })
         }
-            .custom_parser(|s| i64::from_str_radix(s, 8).map(|n| n as f64).ok())
+        .custom_parser(|s| i64::from_str_radix(s, 8).map(|n| n as f64).ok())
     }
 
     /// Set `custom_formatter` and `custom_parser` to display and parse numbers as hexadecimal integers. Floating point
@@ -421,7 +429,7 @@ impl<'a> NotchedSlider<'a> {
                 format!("{sign}{:0>min_width$x}", n.abs() as i64)
             }),
         }
-            .custom_parser(|s| i64::from_str_radix(s, 16).map(|n| n as f64).ok())
+        .custom_parser(|s| i64::from_str_radix(s, 16).map(|n| n as f64).ok())
     }
 
     /// Helper: equivalent to `self.precision(0).smallest_positive(1.0)`.
@@ -514,7 +522,8 @@ impl<'a> NotchedSlider<'a> {
                     let norm_value = normalized_from_value(value, self.range.clone(), &self.spec);
                     let mut closest_distance = (norm_value - closest_notch).abs();
                     for notch in self.notches.iter().copied().chain(Some(*self.range.end())) {
-                        let notch_norm_value = normalized_from_value(notch, self.range.clone(), &self.spec);
+                        let notch_norm_value =
+                            normalized_from_value(notch, self.range.clone(), &self.spec);
                         let distance = (norm_value - notch_norm_value).abs();
                         if distance < closest_distance {
                             closest_notch = notch;
@@ -609,7 +618,10 @@ impl<'a> NotchedSlider<'a> {
                 fill: ui.visuals().widgets.inactive.bg_fill,
                 // fill: visuals.bg_fill,
                 // fill: ui.visuals().extreme_bg_color,
-                stroke: Stroke { width: 0.05, color: Default::default() },
+                stroke: Stroke {
+                    width: 0.05,
+                    color: Default::default(),
+                },
                 // stroke: visuals.bg_stroke,
                 // stroke: ui.visuals().widgets.inactive.bg_stroke,
             });
@@ -621,11 +633,12 @@ impl<'a> NotchedSlider<'a> {
                     center,
                     radius: 2.0,
                     fill: ui.visuals().widgets.noninteractive.bg_fill,
-                    stroke: Stroke { width: 0.0, color: Default::default() },
+                    stroke: Stroke {
+                        width: 0.0,
+                        color: Default::default(),
+                    },
                 });
-
             }
-
 
             let center = self.marker_center(position_1d, &rail_rect);
 

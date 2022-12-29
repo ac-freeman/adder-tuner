@@ -1,25 +1,22 @@
-
-
-use std::time::Duration;
-use adder_codec_rs::{Codec, SourceCamera};
 use adder_codec_rs::framer::event_framer::Framer;
 use adder_codec_rs::framer::scale_intensity::event_to_intensity;
+use adder_codec_rs::{Codec, SourceCamera};
+use std::time::Duration;
 
 use adder_codec_rs::transcoder::source::video::FramedViewMode;
 use bevy::asset::Assets;
+use bevy::ecs::system::Resource;
 use bevy::prelude::{Commands, Image, Res, ResMut};
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::time::Time;
 use bevy_egui::egui::{RichText, Ui};
-use bevy::ecs::system::Resource;
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
+use crate::player::adder::AdderPlayer;
+use crate::{add_checkbox_row, add_radio_row, add_slider_row, Images};
 use bevy_egui::egui;
 use opencv::core::{Mat, MatTraitConstManual, MatTraitManual};
 use opencv::imgproc;
 use rayon::current_num_threads;
-use crate::{add_checkbox_row, add_radio_row, add_slider_row, Images};
-use crate::player::adder::AdderPlayer;
-
 
 #[derive(PartialEq)]
 pub struct PlayerUiSliders {
@@ -89,7 +86,7 @@ impl Default for InfoUiState {
 }
 
 impl InfoUiState {
-    fn clear_stats (&mut self) {
+    fn clear_stats(&mut self) {
         self.events_per_sec = 0.;
         self.events_ppc_per_sec = 0.;
         self.events_ppc_total = 0.0;
@@ -116,7 +113,7 @@ impl PlayerState {
         mut commands: Commands,
         _images: &mut ResMut<Assets<Image>>,
     ) {
-        ui.horizontal(|ui|{
+        ui.horizontal(|ui| {
             ui.heading("ADΔER Parameters");
             if ui.add(egui::Button::new("Reset params")).clicked() {
                 self.ui_state = Default::default();
@@ -125,7 +122,6 @@ impl PlayerState {
                     self.reset_update_adder_params()
                 }
                 self.ui_sliders_drag = Default::default();
-
             }
             if ui.add(egui::Button::new("Reset video")).clicked() {
                 self.player = AdderPlayer::default();
@@ -147,20 +143,29 @@ impl PlayerState {
     }
 
     pub fn side_panel_grid_contents(&mut self, ui: &mut Ui) {
-
-        let mut need_to_update =
-            add_slider_row(true, true,"Playback speed:", ui, &mut self.ui_sliders.playback_speed, &mut self.ui_sliders_drag.playback_speed, 0.1..=15.0, vec![1.0, 2.0, 5.0, 10.0],0.1);
+        let mut need_to_update = add_slider_row(
+            true,
+            true,
+            "Playback speed:",
+            ui,
+            &mut self.ui_sliders.playback_speed,
+            &mut self.ui_sliders_drag.playback_speed,
+            0.1..=15.0,
+            vec![1.0, 2.0, 5.0, 10.0],
+            0.1,
+        );
 
         match &self.player.input_stream {
             None => {}
             Some(stream) => {
-                let duration = Duration::from_nanos(((self.player.current_t_ticks as f64 / stream.tps as f64) * 1.0e9) as u64);
+                let duration = Duration::from_nanos(
+                    ((self.player.current_t_ticks as f64 / stream.tps as f64) * 1.0e9) as u64,
+                );
                 ui.add_enabled(true, egui::Label::new("Current time:"));
                 ui.add_enabled(true, egui::Label::new(to_string(duration)));
                 ui.end_row();
             }
         }
-
 
         ui.add_enabled(true, egui::Label::new("Playback controls:"));
         ui.horizontal(|ui| {
@@ -185,30 +190,51 @@ impl PlayerState {
         ui.end_row();
 
         // TODO: decoding is single-threaded for now
-        add_slider_row(false, false,"Thread count:", ui, &mut self.ui_sliders.thread_count, &mut self.ui_sliders_drag.thread_count, 1..=(current_num_threads()-1).max(4), vec![],1);
-        need_to_update |= add_checkbox_row(true, "Loop:", "Loop playback?", ui, &mut self.ui_state.looping);    // TODO: add more sliders
+        add_slider_row(
+            false,
+            false,
+            "Thread count:",
+            ui,
+            &mut self.ui_sliders.thread_count,
+            &mut self.ui_sliders_drag.thread_count,
+            1..=(current_num_threads() - 1).max(4),
+            vec![],
+            1,
+        );
+        need_to_update |= add_checkbox_row(
+            true,
+            "Loop:",
+            "Loop playback?",
+            ui,
+            &mut self.ui_state.looping,
+        ); // TODO: add more sliders
 
         // TODO
-        need_to_update |= add_radio_row(true, "View mode:",
-                                        vec![
-                                            ("Intensity", FramedViewMode::Intensity,),
-                                            ("D", FramedViewMode::D,),
-                                            ("Δt", FramedViewMode::DeltaT,)
-                                        ],
-                                        ui, &mut self.ui_state.view_mode);
-        need_to_update |= add_radio_row(true, "Reconstruction method:",
-                                        vec![
-                                            ("Fast", ReconstructionMethod::Fast,),
-                                            ("Accurate", ReconstructionMethod::Accurate,),
-                                        ],
-                                        ui, &mut self.ui_state.reconstruction_method);
-
-
+        need_to_update |= add_radio_row(
+            true,
+            "View mode:",
+            vec![
+                ("Intensity", FramedViewMode::Intensity),
+                ("D", FramedViewMode::D),
+                ("Δt", FramedViewMode::DeltaT),
+            ],
+            ui,
+            &mut self.ui_state.view_mode,
+        );
+        need_to_update |= add_radio_row(
+            true,
+            "Reconstruction method:",
+            vec![
+                ("Fast", ReconstructionMethod::Fast),
+                ("Accurate", ReconstructionMethod::Accurate),
+            ],
+            ui,
+            &mut self.ui_state.reconstruction_method,
+        );
 
         if need_to_update {
             self.reset_update_adder_params()
         }
-
     }
 
     pub fn consume_source(
@@ -225,7 +251,7 @@ impl PlayerState {
             None => {
                 return;
             }
-            Some(s) => { s }
+            Some(s) => s,
         };
 
         // Reset the stats if we're starting a new looped playback of the video
@@ -258,7 +284,7 @@ impl PlayerState {
         _commands: Commands,
     ) {
         if self.ui_state.current_frame == 0 {
-            self.ui_state.current_frame = 1;    // TODO: temporary hack
+            self.ui_state.current_frame = 1; // TODO: temporary hack
         }
         if !self.ui_state.playing {
             return;
@@ -267,86 +293,99 @@ impl PlayerState {
             None => {
                 return;
             }
-            Some(s) => { s }
+            Some(s) => s,
         };
 
         let _frame_sequence = match &mut self.player.frame_sequence {
             None => {
                 return;
             }
-            Some(s) => { s }
+            Some(s) => s,
         };
 
-        let frame_length = stream.ref_interval as f64 * self.ui_sliders.playback_speed as f64;    //TODO: temp
+        let frame_length = stream.ref_interval as f64 * self.ui_sliders.playback_speed as f64; //TODO: temp
         {
-        let display_mat = &mut self.player.display_mat;
+            let display_mat = &mut self.player.display_mat;
 
-        loop {
-            if self.player.current_t_ticks as u128 > (self.ui_state.current_frame as u128 * frame_length as u128) {
-                self.ui_state.current_frame += 1;
-                break
-            }
-
-            match stream.decode_event() {
-                Ok(event) if event.d <= 0xFE => {
-                    // event_count += 1;
-                    let y = event.coord.y as i32;
-                    let x = event.coord.x as i32;
-                    let c = event.coord.c.unwrap_or(0) as i32;
-                    if (y | x | c) == 0x0 {
-                        self.player.current_t_ticks += event.delta_t;
-                    }
-
-                    let frame_intensity = (event_to_intensity(&event) * stream.ref_interval as f64)
-                        / match stream.source_camera {
-                        SourceCamera::FramedU8 => u8::MAX as f64,
-                        SourceCamera::FramedU16 => u16::MAX as f64,
-                        SourceCamera::FramedU32 => u32::MAX as f64,
-                        SourceCamera::FramedU64 => u64::MAX as f64,
-                        SourceCamera::FramedF32 => {
-                            todo!("Not yet implemented")
-                        }
-                        SourceCamera::FramedF64 => {
-                            todo!("Not yet implemented")
-                        }
-                        SourceCamera::Dvs => u8::MAX as f64,
-                        SourceCamera::DavisU8 => u8::MAX as f64,
-                        SourceCamera::Atis => {
-                            todo!("Not yet implemented")
-                        }
-                        SourceCamera::Asint => {
-                            todo!("Not yet implemented")
-                        }
-                    } * 255.0;
-
-                    let db = display_mat.data_bytes_mut().unwrap();
-                    db[(y*stream.width as i32*stream.channels as i32 + x* stream.channels as i32 + c) as usize] = frame_intensity as u8;
-                    // unsafe {
-                    //     let px: &mut u8 = display_mat.at_3d_unchecked_mut(y, x, c).unwrap();
-                    //     *px = frame_intensity as u8;
-                    // }
+            loop {
+                if self.player.current_t_ticks as u128
+                    > (self.ui_state.current_frame as u128 * frame_length as u128)
+                {
+                    self.ui_state.current_frame += 1;
+                    break;
                 }
-                Err(_e) => {
-                    match stream.set_input_stream_position(stream.header_size as u64) {
-                        Ok(_) => {}
-                        Err(ee) => {eprintln!("{}", ee)}
-                    };
-                    self.player.frame_sequence = Some(self.player.framer_builder.clone().unwrap().finish());
-                    if !self.ui_state.looping {
-                        self.ui_state.playing = false;
-                    }
-                    self.player.current_t_ticks = 0;
-                    return;
 
+                match stream.decode_event() {
+                    Ok(event) if event.d <= 0xFE => {
+                        // event_count += 1;
+                        let y = event.coord.y as i32;
+                        let x = event.coord.x as i32;
+                        let c = event.coord.c.unwrap_or(0) as i32;
+                        if (y | x | c) == 0x0 {
+                            self.player.current_t_ticks += event.delta_t;
+                        }
+
+                        let frame_intensity = (event_to_intensity(&event)
+                            * stream.ref_interval as f64)
+                            / match stream.source_camera {
+                                SourceCamera::FramedU8 => u8::MAX as f64,
+                                SourceCamera::FramedU16 => u16::MAX as f64,
+                                SourceCamera::FramedU32 => u32::MAX as f64,
+                                SourceCamera::FramedU64 => u64::MAX as f64,
+                                SourceCamera::FramedF32 => {
+                                    todo!("Not yet implemented")
+                                }
+                                SourceCamera::FramedF64 => {
+                                    todo!("Not yet implemented")
+                                }
+                                SourceCamera::Dvs => u8::MAX as f64,
+                                SourceCamera::DavisU8 => u8::MAX as f64,
+                                SourceCamera::Atis => {
+                                    todo!("Not yet implemented")
+                                }
+                                SourceCamera::Asint => {
+                                    todo!("Not yet implemented")
+                                }
+                            }
+                            * 255.0;
+
+                        let db = display_mat.data_bytes_mut().unwrap();
+                        db[(y * stream.width as i32 * stream.channels as i32
+                            + x * stream.channels as i32
+                            + c) as usize] = frame_intensity as u8;
+                        // unsafe {
+                        //     let px: &mut u8 = display_mat.at_3d_unchecked_mut(y, x, c).unwrap();
+                        //     *px = frame_intensity as u8;
+                        // }
+                    }
+                    Err(_e) => {
+                        match stream.set_input_stream_position(stream.header_size as u64) {
+                            Ok(_) => {}
+                            Err(ee) => {
+                                eprintln!("{}", ee)
+                            }
+                        };
+                        self.player.frame_sequence =
+                            Some(self.player.framer_builder.clone().unwrap().finish());
+                        if !self.ui_state.looping {
+                            self.ui_state.playing = false;
+                        }
+                        self.player.current_t_ticks = 0;
+                        return;
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
-    }
 
         let mut image_mat_bgra = Mat::default();
-        imgproc::cvt_color(&self.player.display_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
-
+        imgproc::cvt_color(
+            &self.player.display_mat,
+            &mut image_mat_bgra,
+            imgproc::COLOR_BGR2BGRA,
+            4,
+        )
+        .unwrap();
 
         // TODO: refactor
         let image_bevy = Image::new(
@@ -355,12 +394,11 @@ impl PlayerState {
                 height: stream.height.into(),
                 depth_or_array_layers: 1,
             },
-
             TextureDimension::D2,
             Vec::from(image_mat_bgra.data_bytes().unwrap()),
-            TextureFormat::Bgra8UnormSrgb);
+            TextureFormat::Bgra8UnormSrgb,
+        );
         self.player.live_image = image_bevy;
-
 
         let handle = images.add(self.player.live_image.clone());
         handles.image_view = handle;
@@ -376,14 +414,14 @@ impl PlayerState {
             None => {
                 return;
             }
-            Some(s) => { s }
+            Some(s) => s,
         };
 
         let frame_sequence = match &mut self.player.frame_sequence {
             None => {
                 return;
             }
-            Some(s) => { s }
+            Some(s) => s,
         };
 
         let display_mat = &mut self.player.display_mat;
@@ -395,12 +433,12 @@ impl PlayerState {
                     Some(arr) => {
                         for px in arr.iter() {
                             match px {
-                                Some(event) =>  {
+                                Some(event) => {
                                     let db = display_mat.data_bytes_mut().unwrap();
                                     db[idx] = *event;
                                     idx += 1;
-                                },
-                                None => { },
+                                }
+                                None => {}
                             };
                         }
                     }
@@ -413,8 +451,8 @@ impl PlayerState {
             self.player.current_t_ticks += frame_sequence.tpf;
 
             let mut image_mat_bgra = Mat::default();
-            imgproc::cvt_color(display_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4).unwrap();
-
+            imgproc::cvt_color(display_mat, &mut image_mat_bgra, imgproc::COLOR_BGR2BGRA, 4)
+                .unwrap();
 
             // TODO: refactor
             let image_bevy = Image::new(
@@ -423,33 +461,30 @@ impl PlayerState {
                     height: stream.height.into(),
                     depth_or_array_layers: 1,
                 },
-
                 TextureDimension::D2,
                 Vec::from(image_mat_bgra.data_bytes().unwrap()),
-                TextureFormat::Bgra8UnormSrgb);
+                TextureFormat::Bgra8UnormSrgb,
+            );
             self.player.live_image = image_bevy;
-
 
             let handle = images.add(self.player.live_image.clone());
             handles.image_view = handle;
         }
-
-
-
-
 
         loop {
             match stream.decode_event() {
                 Ok(mut event) => {
                     self.ui_info_state.events_total += 1;
                     if frame_sequence.ingest_event(&mut event) {
-
                         break;
                     }
                 }
                 Err(_e) => {
-                    stream.set_input_stream_position(stream.header_size as u64).unwrap();
-                    self.player.frame_sequence = Some(self.player.framer_builder.clone().unwrap().finish());
+                    stream
+                        .set_input_stream_position(stream.header_size as u64)
+                        .unwrap();
+                    self.player.frame_sequence =
+                        Some(self.player.framer_builder.clone().unwrap().finish());
                     if !self.ui_state.looping {
                         self.ui_state.playing = false;
                     }
@@ -459,25 +494,24 @@ impl PlayerState {
         }
     }
 
-    pub fn central_panel_ui(
-        &mut self,
-        ui: &mut Ui,
-        time: Res<Time>
-    ) {
-
+    pub fn central_panel_ui(&mut self, ui: &mut Ui, time: Res<Time>) {
         ui.heading("Drag and drop your ADΔER file here (.adder)");
 
         ui.label(self.ui_info_state.source_name.clone());
 
-        if let Some(stream) =  &self.player.input_stream {
-            let duration = Duration::from_nanos((
-                (self.player.current_t_ticks as f64 / stream.tps as f64) * 1.0e9) as u64);
-            self.ui_info_state.events_per_sec = self.ui_info_state.events_total as f64 / duration.as_secs() as f64;
-            self.ui_info_state.events_ppc_total = self.ui_info_state.events_total as f64 / stream.width as f64 / stream.height as f64 / stream.channels as f64;
-            self.ui_info_state.events_ppc_per_sec = self.ui_info_state.events_ppc_total / duration.as_secs() as f64;
+        if let Some(stream) = &self.player.input_stream {
+            let duration = Duration::from_nanos(
+                ((self.player.current_t_ticks as f64 / stream.tps as f64) * 1.0e9) as u64,
+            );
+            self.ui_info_state.events_per_sec =
+                self.ui_info_state.events_total as f64 / duration.as_secs() as f64;
+            self.ui_info_state.events_ppc_total = self.ui_info_state.events_total as f64
+                / stream.width as f64
+                / stream.height as f64
+                / stream.channels as f64;
+            self.ui_info_state.events_ppc_per_sec =
+                self.ui_info_state.events_ppc_total / duration.as_secs() as f64;
         }
-
-
 
         // TODO: make fps accurate and meaningful here
         ui.label(format!(
@@ -496,10 +530,9 @@ impl PlayerState {
     }
 
     fn reset_update_adder_params(&mut self) {
-
         self.ui_state.current_frame = match self.ui_state.reconstruction_method {
-            ReconstructionMethod::Fast => { 1}
-            ReconstructionMethod::Accurate => { 0}
+            ReconstructionMethod::Fast => 1,
+            ReconstructionMethod::Accurate => 0,
         };
         self.ui_state.total_frames = 0;
         self.ui_state.current_time = 0.0;
@@ -508,20 +541,26 @@ impl PlayerState {
             None => {
                 return;
             }
-            Some(p) => {
-                p
-            }
+            Some(p) => p,
         };
 
-        self.player = AdderPlayer::new(path_buf, self.ui_sliders.playback_speed, self.ui_state.view_mode).unwrap();
+        self.player = AdderPlayer::new(
+            path_buf,
+            self.ui_sliders.playback_speed,
+            self.ui_state.view_mode,
+        )
+        .unwrap();
     }
 
-
     pub fn replace_player(&mut self, path_buf: &std::path::PathBuf) {
-        self.player = AdderPlayer::new(path_buf, self.ui_sliders.playback_speed, self.ui_state.view_mode).unwrap();
+        self.player = AdderPlayer::new(
+            path_buf,
+            self.ui_sliders.playback_speed,
+            self.ui_state.view_mode,
+        )
+        .unwrap();
         self.ui_info_state.source_name = RichText::from(path_buf.to_str().unwrap().to_string());
         self.ui_state.current_frame = 1;
-
     }
 }
 

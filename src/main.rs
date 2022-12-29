@@ -1,17 +1,14 @@
-mod transcoder;
 mod player;
+mod transcoder;
 mod utils;
 
+use std::ops::RangeInclusive;
 
-use std::ops::{RangeInclusive};
-
-
-
+use crate::player::ui::PlayerState;
+use crate::transcoder::ui::TranscoderState;
 use bevy::ecs::system::Resource;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
-use crate::player::ui::PlayerState;
-use crate::transcoder::ui::{TranscoderState};
 
 use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
 // use egui_dock::egui as dock_egui;
@@ -31,8 +28,8 @@ enum Tabs {
 impl Tabs {
     fn as_str(&self) -> &'static str {
         match self {
-            Tabs::Transcoder => {"Transcode"}
-            Tabs::Player => {"Play file"}
+            Tabs::Transcoder => "Transcode",
+            Tabs::Player => "Play file",
         }
     }
 }
@@ -42,9 +39,7 @@ pub struct MainUiState {
     view: Tabs,
 }
 
-
-
-use crate::transcoder::adder::{replace_adder_transcoder};
+use crate::transcoder::adder::replace_adder_transcoder;
 use crate::utils::slider::NotchedSlider;
 
 /// This example demonstrates the following functionality and use-cases of bevy_egui:
@@ -56,7 +51,9 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(Images::default())
-        .insert_resource(MainUiState { view: Tabs::Transcoder })
+        .insert_resource(MainUiState {
+            view: Tabs::Transcoder,
+        })
         .init_resource::<TranscoderState>()
         .init_resource::<PlayerState>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -87,9 +84,6 @@ fn main() {
 pub struct Images {
     image_view: Handle<Image>,
 }
-
-
-
 
 fn configure_visuals(mut egui_ctx: ResMut<EguiContext>) {
     egui_ctx.ctx_mut().set_visuals(bevy_egui::egui::Visuals {
@@ -143,7 +137,8 @@ fn configure_menu_bar(
             for menu_item in Tabs::iter() {
                 let button = {
                     if main_ui_state.view == menu_item {
-                        ui.style_mut().visuals.widgets.inactive.fg_stroke = ui.style_mut().visuals.widgets.active.fg_stroke;
+                        ui.style_mut().visuals.widgets.inactive.fg_stroke =
+                            ui.style_mut().visuals.widgets.active.fg_stroke;
                         egui::Button::new(menu_item.as_str()).fill(style.visuals.window_fill)
                     } else {
                         ui.style_mut().visuals.widgets.inactive.fg_stroke = default_inactive_stroke;
@@ -179,30 +174,22 @@ fn draw_ui(
 ) {
     egui::SidePanel::left("side_panel")
         .default_width(300.0)
-        .show(egui_ctx.ctx_mut(), |ui| {
-
-
-            match main_ui_state.view {
-                Tabs::Transcoder => {
-                    transcoder_state.side_panel_ui(ui, commands, &mut images);
-                }
-                Tabs::Player => {
-                    player_state.side_panel_ui(ui, commands, &mut images);
-                }
+        .show(egui_ctx.ctx_mut(), |ui| match main_ui_state.view {
+            Tabs::Transcoder => {
+                transcoder_state.side_panel_ui(ui, commands, &mut images);
             }
-
-
-
+            Tabs::Player => {
+                player_state.side_panel_ui(ui, commands, &mut images);
+            }
         });
-
-
 
     let (image, texture_id) = match images.get(&handles.image_view) {
         // texture_id = Some(egui_ctx.add_image(handles.image_view.clone()));
-        None => { (None, None)}
-        Some(image) => {
-            (Some(image),Some(egui_ctx.add_image(handles.image_view.clone())))
-        }
+        None => (None, None),
+        Some(image) => (
+            Some(image),
+            Some(egui_ctx.add_image(handles.image_view.clone())),
+        ),
     };
 
     egui::CentralPanel::default().show(egui_ctx.ctx_mut(), |ui| {
@@ -217,33 +204,39 @@ fn draw_ui(
             }
         }
 
-
         /*
         Images in the central panel are common to both visualization tabs, so we can do this
          here as the last step of drawing its UI
         */
         if let (Some(image), Some(texture_id)) = (image, texture_id) {
-                let avail_size = ui.available_size();
-                let size = match (image.texture_descriptor.size.width as f32, image.texture_descriptor.size.height as f32) {
-                    (a, b) if a/b > avail_size.x/avail_size.y => {
-                        /*
-                        The available space has a taller aspect ratio than the video
-                        Fill the available horizontal space.
-                         */
-                        bevy_egui::egui::Vec2 { x: avail_size.x, y: (avail_size.x/a) * b }
+            let avail_size = ui.available_size();
+            let size = match (
+                image.texture_descriptor.size.width as f32,
+                image.texture_descriptor.size.height as f32,
+            ) {
+                (a, b) if a / b > avail_size.x / avail_size.y => {
+                    /*
+                    The available space has a taller aspect ratio than the video
+                    Fill the available horizontal space.
+                     */
+                    bevy_egui::egui::Vec2 {
+                        x: avail_size.x,
+                        y: (avail_size.x / a) * b,
                     }
-                    (a, b) => {
-                        /*
-                        The available space has a shorter aspect ratio than the video
-                        Fill the available vertical space.
-                         */
-                        bevy_egui::egui::Vec2 { x: (avail_size.y/b) * a, y: avail_size.y }
+                }
+                (a, b) => {
+                    /*
+                    The available space has a shorter aspect ratio than the video
+                    Fill the available vertical space.
+                     */
+                    bevy_egui::egui::Vec2 {
+                        x: (avail_size.y / b) * a,
+                        y: avail_size.y,
                     }
-                };
-                ui.image(texture_id,  size);
-            }
-
-
+                }
+            };
+            ui.image(texture_id, size);
+        }
     });
 }
 
@@ -251,14 +244,16 @@ fn update_adder_params(
     main_ui_state: Res<MainUiState>,
     mut transcoder_state: ResMut<TranscoderState>,
     _player_state: ResMut<PlayerState>,
-                       commands: Commands) {
+    commands: Commands,
+) {
     match main_ui_state.view {
-        Tabs::Transcoder => {transcoder_state.update_adder_params(commands);}
+        Tabs::Transcoder => {
+            transcoder_state.update_adder_params(commands);
+        }
         Tabs::Player => {
             // player_state.update_adder_params(commands);
         }
     }
-
 }
 
 fn consume_source(
@@ -282,7 +277,6 @@ fn consume_source(
 #[derive(Component, Default)]
 struct MyDropTarget;
 
-
 ///https://bevy-cheatbook.github.io/input/dnd.html
 fn file_drop(
     main_ui_state: ResMut<MainUiState>,
@@ -299,7 +293,6 @@ fn file_drop(
 
             if id.is_primary() {
                 // it was dropped over the main window
-
             }
 
             for interaction in query_ui_droptarget.iter() {
@@ -309,29 +302,30 @@ fn file_drop(
                 }
             }
 
-
             match main_ui_state.view {
                 Tabs::Transcoder => {
                     // TODO: refactor as struct func
-                    replace_adder_transcoder(
-                        &mut commands,
-                        &mut transcoder_state,
-                        path_buf, 0);
+                    replace_adder_transcoder(&mut commands, &mut transcoder_state, path_buf, 0);
                 }
                 Tabs::Player => {
                     player_state.replace_player(path_buf);
                 }
             }
-
         }
     }
 }
 
-
-
-
 /// A slider with +/- buttons. Returns true if the value was changed.
-fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, logarithmic: bool, ui: &mut Ui, instant_value: &mut Num, drag_value: &mut Num, range: RangeInclusive<Num>, notches: Vec<Num>, interval: Num) -> bool {
+fn slider_pm<Num: emath::Numeric + Pm>(
+    enabled: bool,
+    logarithmic: bool,
+    ui: &mut Ui,
+    instant_value: &mut Num,
+    drag_value: &mut Num,
+    range: RangeInclusive<Num>,
+    notches: Vec<Num>,
+    interval: Num,
+) -> bool {
     let start_value = *instant_value;
     ui.add_enabled_ui(enabled, |ui| {
         ui.horizontal(|ui| {
@@ -339,7 +333,9 @@ fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, logarithmic: bool, ui: &mu
                 instant_value.decrement(range.start(), &interval);
                 *drag_value = *instant_value;
             }
-            let slider = ui.add(NotchedSlider::new(drag_value, range.clone(), notches).logarithmic(logarithmic));
+            let slider = ui.add(
+                NotchedSlider::new(drag_value, range.clone(), notches).logarithmic(logarithmic),
+            );
             if slider.drag_released() {
                 *instant_value = *drag_value;
             }
@@ -352,30 +348,64 @@ fn slider_pm<Num: emath::Numeric + Pm>(enabled: bool, logarithmic: bool, ui: &mu
     });
 
     *instant_value != start_value
-
 }
 
-fn add_slider_row<Num: emath::Numeric + Pm>(enabled: bool, logarithmic: bool, label: impl Into<WidgetText>, ui: &mut Ui, instant_value: &mut Num, drag_value: &mut Num, range: RangeInclusive<Num>, notches: Vec<Num>, interval: Num) -> bool {
+fn add_slider_row<Num: emath::Numeric + Pm>(
+    enabled: bool,
+    logarithmic: bool,
+    label: impl Into<WidgetText>,
+    ui: &mut Ui,
+    instant_value: &mut Num,
+    drag_value: &mut Num,
+    range: RangeInclusive<Num>,
+    notches: Vec<Num>,
+    interval: Num,
+) -> bool {
     ui.add_enabled(enabled, egui::Label::new(label));
-    let ret = slider_pm(enabled, logarithmic, ui, instant_value, drag_value, range, notches,interval);
+    let ret = slider_pm(
+        enabled,
+        logarithmic,
+        ui,
+        instant_value,
+        drag_value,
+        range,
+        notches,
+        interval,
+    );
     ui.end_row();
     ret
 }
 
-fn add_checkbox_row(enabled: bool, label_1: impl Into<WidgetText>, label_2: impl Into<WidgetText>, ui: &mut Ui, checkbox_value: &mut bool) -> bool {
+fn add_checkbox_row(
+    enabled: bool,
+    label_1: impl Into<WidgetText>,
+    label_2: impl Into<WidgetText>,
+    ui: &mut Ui,
+    checkbox_value: &mut bool,
+) -> bool {
     ui.add_enabled(enabled, egui::Label::new(label_1));
-    let ret = ui.add_enabled(enabled, egui::Checkbox::new(checkbox_value, label_2)).changed();
+    let ret = ui
+        .add_enabled(enabled, egui::Checkbox::new(checkbox_value, label_2))
+        .changed();
     ui.end_row();
     ret
 }
 
-fn add_radio_row<Value: PartialEq + Clone>(enabled: bool, label: impl Into<WidgetText>, options: Vec<(impl Into<WidgetText> + Clone, Value)>, ui: &mut Ui, radio_state: &mut Value) -> bool {
+fn add_radio_row<Value: PartialEq + Clone>(
+    enabled: bool,
+    label: impl Into<WidgetText>,
+    options: Vec<(impl Into<WidgetText> + Clone, Value)>,
+    ui: &mut Ui,
+    radio_state: &mut Value,
+) -> bool {
     ui.label(label);
     let mut ret = false;
     ui.add_enabled_ui(enabled, |ui| {
         ui.horizontal(|ui| {
             for option in options {
-                ret |= ui.radio_value(radio_state, option.1.clone(), option.0.clone()).changed();
+                ret |= ui
+                    .radio_value(radio_state, option.1.clone(), option.0.clone())
+                    .changed();
             }
         });
     });
