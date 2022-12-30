@@ -2,7 +2,7 @@
 [![Crates.io](https://img.shields.io/crates/v/adder-viz)](https://crates.io/crates/adder-viz)
 [![Downloads](https://img.shields.io/crates/dr/adder-viz)](https://crates.io/crates/adder-viz)
 
-A GUI project to make it easier to tune the parameters of ADΔER transcoding.
+A GUI project to make it easier to tune the parameters of ADΔER transcoding. See the [ADΔER codec](https://github.com/ac-freeman/adder-codec-rs) for more information on ADΔER and asynchronous video.
 
 ![](https://github.com/ac-freeman/adder-tuner/blob/main/examples/screenshot.png)
 
